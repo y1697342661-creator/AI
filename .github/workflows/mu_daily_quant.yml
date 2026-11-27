@@ -51,6 +51,7 @@ jobs:
       - name: Run OKX Simulated Trading Sync (XMU-USDT Spot Only)
         env:
           PYTHONPATH: src
+          MU_SECRET_JSON: ${{ secrets.MU }}
           MU_OKX_DEMO_API_KEY: ${{ secrets.MU_OKX_DEMO_API_KEY }}
           MU_OKX_DEMO_SECRET_KEY: ${{ secrets.MU_OKX_DEMO_SECRET_KEY }}
           MU_OKX_DEMO_PASSPHRASE: ${{ secrets.MU_OKX_DEMO_PASSPHRASE }}
@@ -64,10 +65,12 @@ jobs:
         run: |
           if [ -n "$MU_OKX_DEMO_API_KEY" ]; then
             echo "Secret source: dedicated MU_OKX_DEMO_* (isolated from BTC_OKX_DEMO_*)"
+          elif [ -n "$MU_SECRET_JSON" ]; then
+            echo "Secret source: dedicated MU JSON secret (isolated from BTC)"
           elif [ -n "$OKX_DEMO_API_KEY" ]; then
             echo "Secret source: fallback OKX_DEMO_*"
           else
-            echo "No MU_OKX_DEMO_API_KEY / OKX_DEMO_API_KEY secret configured; skipping OKX Demo sync."
+            echo "No MU / MU_OKX_DEMO_API_KEY / OKX_DEMO_API_KEY secret configured; skipping OKX Demo sync."
             exit 0
           fi
 

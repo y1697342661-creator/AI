@@ -69,6 +69,25 @@ def _load_demo_secrets() -> dict[str, Any]:
             "source": "env",
         }
 
+    # 1b) Single-secret JSON bundle support (e.g. GitHub Secret named `MU`)
+    raw_json = (os.environ.get("MU_SECRET_JSON") or "").strip()
+    if raw_json:
+        try:
+            obj = json.loads(raw_json)
+            k = str(obj.get("apiKey") or obj.get("api_key") or "").strip()
+            s = str(obj.get("secretKey") or obj.get("secret_key") or "").strip()
+            p = str(obj.get("passphrase") or obj.get("password") or "").strip()
+            if k and s and p:
+                return {
+                    "apiKey": k,
+                    "secretKey": s,
+                    "passphrase": p,
+                    "simulated_only": True,
+                    "source": "env_json",
+                }
+        except Exception:
+            pass
+
     # 2) Local gitignored secrets file
     if not SECRETS_FILE.exists():
         raise FileNotFoundError(f"Missing demo secrets file: {SECRETS_FILE} (and no OKX_DEMO_* env vars set)")
