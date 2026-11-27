@@ -1,6 +1,10 @@
 name: MU 2.0 Daily Quant & OKX Demo Cloud Runner
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/mu_daily_quant.yml"
   schedule:
     # 1) Beijing Tue-Sat 07:00 (post US market close): refresh MU daily data + paper signal + forward scorecard
     - cron: "0 23 * * 1-5"
@@ -65,6 +69,8 @@ jobs:
 
           SHOULD_SYNC="false"
           if [ "$EVENT_NAME" = "workflow_dispatch" ] && [ "$INPUT_EXECUTE" = "true" ]; then
+            SHOULD_SYNC="true"
+          elif [ "$EVENT_NAME" = "push" ] && [ "$VAR_AUTO_EXECUTE" != "false" ]; then
             SHOULD_SYNC="true"
           elif [ "$SCHEDULE_CRON" = "35 14 * * 1-5" ] && [ "$VAR_AUTO_EXECUTE" != "false" ]; then
             SHOULD_SYNC="true"
