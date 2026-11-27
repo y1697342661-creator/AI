@@ -24,6 +24,7 @@ from mu_quant.data.loader import refresh_all_market_data
 from mu_quant.execution_simulator.okx_demo_channel import sync_demo_spot_position
 from mu_quant.paper_trading.daily_runner import verify_version_freeze
 from mu_quant.paper_trading.engine import record_daily_signal, record_paper_trade
+from mu_quant.paper_trading.forward_tracker import update_forward_scorecard
 
 
 def main() -> int:
@@ -64,6 +65,14 @@ def main() -> int:
         "stop_price": payload["risk_plan"]["stop_price"],
         "note": f"OKX模拟盘同步 | {payload['signals']['long']['reason']}",
     })
+    update_forward_scorecard(
+        market_date=m["date"],
+        mu_open=m["open"],
+        mu_close=m["close"],
+        target_weight=tw,
+        strategy_version=ver,
+        initial_capital=float(ac.get("initial_cash", 100_000.0)),
+    )
     print(f"[3/4] MU最新收盘({m['date']}): ${m['close']:.2f} | 目标仓位: {tw*100:.1f}%")
 
     sync_res = sync_demo_spot_position(

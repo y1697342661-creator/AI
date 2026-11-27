@@ -13,6 +13,7 @@ import datetime as dt
 import hashlib
 import hmac
 import json
+import os
 import sys
 import urllib.error
 import urllib.request
@@ -55,8 +56,22 @@ def _http_request_json(method: str, path: str, headers: dict[str, str] | None = 
 
 
 def _load_demo_secrets() -> dict[str, Any]:
+    # 1) Cloud / GitHub Actions Secrets via environment variables (still hardcoded x-simulated-trading: 1)
+    env_key = os.environ.get("MU_OKX_DEMO_API_KEY") or os.environ.get("OKX_DEMO_API_KEY") or ""
+    env_sec = os.environ.get("MU_OKX_DEMO_SECRET_KEY") or os.environ.get("OKX_DEMO_SECRET_KEY") or ""
+    env_pass = os.environ.get("MU_OKX_DEMO_PASSPHRASE") or os.environ.get("OKX_DEMO_PASSPHRASE") or ""
+    if env_key.strip() and env_sec.strip() and env_pass.strip():
+        return {
+            "apiKey": env_key.strip(),
+            "secretKey": env_sec.strip(),
+            "passphrase": env_pass.strip(),
+            "simulated_only": True,
+            "source": "env",
+        }
+
+    # 2) Local gitignored secrets file
     if not SECRETS_FILE.exists():
-        raise FileNotFoundError(f"Missing demo secrets file: {SECRETS_FILE}")
+        raise FileNotFoundError(f"Missing demo secrets file: {SECRETS_FILE} (and no OKX_DEMO_* env vars set)")
     sec = json.loads(SECRETS_FILE.read_text(encoding="utf-8-sig"))
     if sec.get("simulated_only") is not True:
         raise RuntimeError("Safety block: okx_demo_secrets.local.json MUST set simulated_only=true.")
