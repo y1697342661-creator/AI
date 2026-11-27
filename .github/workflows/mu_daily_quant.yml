@@ -1,4 +1,4 @@
-# Dedicated MU 2.0 cloud workflow (isolated MU_OKX_DEMO_* secrets, zero leverage XMU-USDT spot only)
+# Dedicated MU 2.0 cloud workflow (isolated MU / MU_OKX_DEMO_* secrets, zero leverage XMU-USDT spot only)
 name: MU 2.0 Daily Quant & OKX Demo Cloud Runner
 
 on:
