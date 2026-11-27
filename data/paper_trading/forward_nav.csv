@@ -1,2 +1,3 @@
 ﻿date,recorded_at,strategy_version,mu_open,mu_close,target_weight,actual_weight,action,trade_cost_usd,strategy_nav,strategy_ret_pct,strategy_dd_pct,bh_nav,bh_ret_pct,bh_dd_pct,alpha_pct,xmu_px,xmu_spread_bps,note
 2026-11-25,2026-11-27T11:52:33,v2.0.0,574.96,601.25,0.3852,0.0,INIT_DAY1,0.0,100000.0,0.0,0.0,100000.0,0.0,0.0,0.0,,,前瞻模拟盘起跑日（待下一美股开盘建仓目标 38.5%）
+2026-11-27,2026-11-27T22:53:31,v2.0.0,630.125,646.95,0.3852,0.3917,BUY,57.8,100970.81,0.97,0.0,107439.67,7.44,0.0,-6.47,,,按T+1开盘执行前日目标38.5%，明日新目标38.5%
