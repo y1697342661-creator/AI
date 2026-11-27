@@ -61,9 +61,12 @@ jobs:
           INPUT_EXECUTE: ${{ inputs.execute_demo }}
           VAR_AUTO_EXECUTE: ${{ vars.MU_AUTO_EXECUTE_DEMO }}
         run: |
-          API_KEY="${MU_OKX_DEMO_API_KEY:-$OKX_DEMO_API_KEY}"
-          if [ -z "$API_KEY" ]; then
-            echo "No OKX_DEMO_API_KEY / MU_OKX_DEMO_API_KEY secret configured; skipping OKX Demo sync."
+          if [ -n "$MU_OKX_DEMO_API_KEY" ]; then
+            echo "Secret source: dedicated MU_OKX_DEMO_* (isolated from BTC_OKX_DEMO_*)"
+          elif [ -n "$OKX_DEMO_API_KEY" ]; then
+            echo "Secret source: fallback OKX_DEMO_*"
+          else
+            echo "No MU_OKX_DEMO_API_KEY / OKX_DEMO_API_KEY secret configured; skipping OKX Demo sync."
             exit 0
           fi
 
