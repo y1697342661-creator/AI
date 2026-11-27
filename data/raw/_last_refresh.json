@@ -1,18 +1,18 @@
 {
   "ok": true,
   "skipped": false,
-  "refreshed_at": "2026-11-27T10:15:55",
+  "refreshed_at": "2026-11-27T12:35:14",
   "symbols": {
     "MU": {
       "ok": true,
-      "source": "yahoo_noop",
+      "source": "eastmoney_noop",
       "rows": 10557,
       "added": 0,
       "last_date": "2026-11-25"
     },
     "SMH": {
       "ok": true,
-      "source": "yahoo_noop",
+      "source": "eastmoney_noop",
       "rows": 6660,
       "added": 0,
       "last_date": "2026-11-25"
@@ -26,21 +26,21 @@
     },
     "SPY": {
       "ok": true,
-      "source": "yahoo_noop",
+      "source": "eastmoney_noop",
       "rows": 8515,
       "added": 0,
       "last_date": "2026-11-25"
     },
     "QQQ": {
       "ok": true,
-      "source": "yahoo_noop",
+      "source": "eastmoney_noop",
       "rows": 6973,
       "added": 0,
       "last_date": "2026-11-25"
     },
     "NVDA": {
       "ok": true,
-      "source": "yahoo_noop",
+      "source": "eastmoney_noop",
       "rows": 7005,
       "added": 0,
       "last_date": "2026-11-25"
