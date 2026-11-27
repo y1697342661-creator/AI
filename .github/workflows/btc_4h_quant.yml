@@ -1,0 +1,63 @@
+name: BTC 4H Perpetual Quant Cloud Runner
+
+on:
+  schedule:
+    # Run 2 minutes after every 4H candle closes (00:02, 04:02, 08:02, 12:02, 16:02, 20:02 UTC)
+    - cron: "2 */4 * * *"
+  workflow_dispatch:
+    inputs:
+      execute_demo:
+        description: "Submit rebalance order to OKX Simulated Trading (x-simulated-trading: 1 ONLY)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  run-btc-4h:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: "requirements-btc.txt"
+
+      - name: Install minimal dependencies
+        run: pip install -r requirements-btc.txt
+
+      - name: Run BTC 4H Data Refresh, Paper Ledger & OKX Demo Sync
+        env:
+          PYTHONPATH: src
+          OKX_DEMO_API_KEY: ${{ secrets.OKX_DEMO_API_KEY }}
+          OKX_DEMO_SECRET_KEY: ${{ secrets.OKX_DEMO_SECRET_KEY }}
+          OKX_DEMO_PASSPHRASE: ${{ secrets.OKX_DEMO_PASSPHRASE }}
+          EXECUTE_DEMO: ${{ inputs.execute_demo || vars.BTC_AUTO_EXECUTE_DEMO || 'false' }}
+        run: |
+          if [ -n "$OKX_DEMO_API_KEY" ]; then
+            if [ "$EXECUTE_DEMO" = "true" ]; then
+              python -m btc_quant.paper_trading.runner --refresh --sync-okx-demo --execute-demo
+            else
+              python -m btc_quant.paper_trading.runner --refresh --sync-okx-demo
+            fi
+          else
+            python -m btc_quant.paper_trading.runner --refresh
+          fi
+
+      - name: Commit updated BTC paper trading ledger & data
+        run: |
+          git config user.name "btc-quant-bot"
+          git config user.email "btc-quant-bot@users.noreply.github.com"
+          git add data/btc/paper_trading/ data/btc/okx_demo/ data/btc/raw/_last_refresh.json
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(btc): 4H paper trading & demo sync update [skip ci]"
+            git push
+          else
+            echo "No ledger changes to commit."
+          fi

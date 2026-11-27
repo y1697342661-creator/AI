@@ -1,0 +1,2 @@
+﻿recorded_at,trade_date,strategy_version,action,shares,fill_price,commission,borrow_fee,note
+2026-11-27T17:48:38,2026-11-25,v2.0.0,BUY,44.8535,640.68,28.74,0.0,OKX模拟盘自动同步 ordId=4136272190004686849

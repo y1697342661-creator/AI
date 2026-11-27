@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BTC 永续合约量化交易控制台 v1.0</title>
+  <style>
+    :root {
+      --bg: #0b0f17; --card: #131a26; --border: #222e42; --text: #e6edf7; --muted: #8b9bb4;
+      --accent: #f7931a; --green: #10b981; --red: #ef4444; --blue: #3b82f6; --purple: #a855f7;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif; background: var(--bg); color: var(--text); }
+    header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; padding: 14px 22px; background: #0f1520; border-bottom: 1px solid var(--border); gap: 12px; }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; }
+    .badge { padding: 3px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; background: rgba(247,147,26,.16); color: var(--accent); border: 1px solid rgba(247,147,26,.35); }
+    .badge.safe { background: rgba(16,185,129,.14); color: var(--green); border-color: rgba(16,185,129,.35); }
+    .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    select, button { background: #1a2436; color: var(--text); border: 1px solid var(--border); padding: 7px 12px; border-radius: 8px; font-size: 13px; cursor: pointer; }
+    button:hover { border-color: var(--accent); }
+    button.primary { background: var(--accent); color: #111; font-weight: 700; border: none; }
+    main { max-width: 1440px; margin: 0 auto; padding: 18px 22px 40px; display: grid; gap: 16px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; }
+    .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 16px; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+    .card h3 { margin: 0 0 12px; font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; display: flex; justify-content: space-between; align-items: center; }
+    .kpi { font-size: 26px; font-weight: 700; margin: 4px 0; }
+    .sub { font-size: 12px; color: var(--muted); }
+    .pos { color: var(--green); } .neg { color: var(--red); } .warn { color: var(--accent); }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { padding: 8px 10px; text-align: right; border-bottom: 1px solid var(--border); }
+    th:first-child, td:first-child { text-align: left; }
+    th { color: var(--muted); font-weight: 600; font-size: 12px; }
+    .chart-wrap { width: 100%; height: 290px; position: relative; }
+    svg { width: 100%; height: 100%; }
+    .legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; margin-bottom: 8px; color: var(--muted); }
+    .legend span { display: inline-flex; align-items: center; gap: 6px; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+    .pill { display: inline-block; padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 12px; }
+    .pill.LONG { background: rgba(16,185,129,.18); color: var(--green); }
+    .pill.SHORT { background: rgba(239,68,68,.18); color: var(--red); }
+    .pill.FLAT { background: rgba(139,155,180,.18); color: var(--muted); }
+    .kv-list { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px; font-size: 13px; }
+    .kv { display: flex; justify-content: space-between; border-bottom: 1px dashed #1f2b3e; padding-bottom: 5px; }
+    .kv span:first-child { color: var(--muted); }
+    #toast { position: fixed; right: 20px; bottom: 20px; background: #1e293b; border: 1px solid var(--accent); padding: 10px 16px; border-radius: 10px; display: none; font-size: 13px; z-index: 99; max-width: 420px; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <span>₿ BTC-USDT-SWAP 永续合约量化系统</span>
+      <span class="badge" id="verBadge">v1.0.0</span>
+      <span class="badge safe">逐仓低杠杆 · 严禁实盘自动下单</span>
+    </div>
+    <div class="controls">
+      <select id="modeSel">
+        <option value="dual_horizon_ensemble">双周期多空主力 (Flagship)</option>
+        <option value="cta_trend_ensemble">CTA突破+趋势组合</option>
+        <option value="donchian_cta">唐奇安通道CTA</option>
+        <option value="long_only_control">纯多头对照</option>
+      </select>
+      <select id="startSel">
+        <option value="2021-02-01">2021-02 至今 (全周期)</option>
+        <option value="2023-01-01">2023-01 至今</option>
+        <option value="2024-07-01">2024-07 至今 (样本外OOS)</option>
+      </select>
+      <button onclick="refreshMarket()">刷新OKX行情</button>
+      <button onclick="runPaperStep()">记录4H纸面信号</button>
+      <button class="primary" onclick="syncOkxDemo(true)">预览OKX模拟盘调仓</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="grid-4">
+      <div class="card">
+        <h3>OKX BTC-USDT-SWAP 实时</h3>
+        <div class="kpi" id="livePx">--</div>
+        <div class="sub" id="liveSub">基差 -- | 持仓量 --</div>
+      </div>
+      <div class="card">
+        <h3>当前市场环境 (1D+4H)</h3>
+        <div class="kpi" id="regimeName" style="font-size:20px">--</div>
+        <div class="sub" id="regimeSub">14D波动率 -- | ADX --</div>
+      </div>
+      <div class="card">
+        <h3>最新4H合约信号与杠杆</h3>
+        <div class="kpi" id="sigDir">--</div>
+        <div class="sub" id="sigSub">目标杠杆 -- | 建议止损 --</div>
+      </div>
+      <div class="card">
+        <h3>前瞻纸面净值 (USDT)</h3>
+        <div class="kpi" id="paperEq">--</div>
+        <div class="sub" id="paperSub">回撤 -- | 累计资金费 --</div>
+      </div>
+    </section>
+
+    <section class="grid-2">
+      <div class="card">
+        <h3>逐仓风控与合约下单测算 (OKX 1张 = 0.01 BTC)</h3>
+        <div class="kv-list" id="riskKv"></div>
+        <div id="riskWarn" style="margin-top:10px;font-size:12px;color:var(--accent)"></div>
+      </div>
+      <div class="card">
+        <h3>OKX 模拟盘通道 (x-simulated-trading: 1 强锁定)</h3>
+        <div class="kv-list" id="okxKv"></div>
+        <div style="margin-top:12px;display:flex;gap:8px;">
+          <button onclick="syncOkxDemo(true)">干跑预览 (Dry-Run)</button>
+          <button onclick="syncOkxDemo(false)" style="border-color:var(--green);color:var(--green)">执行模拟盘同步</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h3>净值曲线对比（初始 $100,000 · 计入8bps双边费滑 + 8小时资金费率）</h3>
+      <div class="legend" id="chartLegend"></div>
+      <div class="chart-wrap"><svg id="eqChart" viewBox="0 0 1000 280" preserveAspectRatio="none"></svg></div>
+    </section>
+
+    <section class="card">
+      <h3>多策略绩效与成本归因对比</h3>
+      <div style="overflow-x:auto">
+        <table id="perfTable">
+          <thead>
+            <tr>
+              <th>策略模型</th><th>总收益%</th><th>年化CAGR%</th><th>Sharpe</th><th>Sortino</th>
+              <th>最大回撤%</th><th>Calmar</th><th>交易数</th><th>胜率%</th><th>盈亏比PF</th>
+              <th>资金费PnL($)</th><th>手续费($)</th><th>强平次数</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="grid-2">
+      <div class="card">
+        <h3>近期回测成交记录 (最近20笔)</h3>
+        <div style="overflow-x:auto;max-height:320px;">
+          <table id="tradesTable">
+            <thead><tr><th>入场时间</th><th>方向</th><th>入场价</th><th>出场价</th><th>净盈亏$</th><th>资金费$</th><th>原因</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <h3>前瞻纸面交易日志 (Append-Only)</h3>
+        <div style="overflow-x:auto;max-height:320px;">
+          <table id="paperTable">
+            <thead><tr><th>4H K线时间</th><th>环境</th><th>方向</th><th>杠杆</th><th>张数</th><th>动作</th><th>净值$</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast"></div>
+
+  <script>
+    const COLORS = {
+      dual_horizon_ensemble: '#f7931a',
+      cta_trend_ensemble: '#10b981',
+      donchian_cta: '#3b82f6',
+      long_only_control: '#a855f7',
+      buy_and_hold: '#64748b'
+    };
+
+    function toast(msg) {
+      const el = document.getElementById('toast');
+      el.textContent = msg; el.style.display = 'block';
+      setTimeout(() => el.style.display = 'none', 4500);
+    }
+
+    function fmt(v, d=2) { return (v === null || v === undefined || Number.isNaN(v)) ? '--' : Number(v).toLocaleString('en-US', {minimumFractionDigits: d, maximumFractionDigits: d}); }
+
+    async function loadDashboard() {
+      const mode = document.getElementById('modeSel').value;
+      const start = document.getElementById('startSel').value;
+      const res = await fetch(`/api/dashboard?mode=${mode}&start=${start}`);
+      const d = await res.json();
+      if (d.error) { toast('加载失败: ' + d.error); return; }
+
+      document.getElementById('verBadge').textContent = d.version || 'v1.0.0';
+
+      // Live KPI
+      const lv = d.live_snapshot || {};
+      document.getElementById('livePx').textContent = lv.last ? `$${fmt(lv.last, 1)}` : `$${fmt(d.signal.close_px, 1)}`;
+      document.getElementById('liveSub').textContent = lv.last
+        ? `现货基差 ${fmt(lv.basis_bps, 1)}bp | 8h费率年化 ${fmt(lv.funding_rate_annual_pct, 2)}% | OI $${fmt(lv.oi_usd_m, 0)}M`
+        : '实时行情暂不可用（显示最新已收盘4H价）';
+
+      // Regime
+      const rg = d.regime || {};
+      document.getElementById('regimeName').textContent = `${rg.regime} · ${rg.regime_zh || ''}`;
+      document.getElementById('regimeSub').textContent = `14D波动 ${fmt(rg.rvol_14d_pct, 1)}% | 1D ADX ${fmt(rg.adx_14d, 1)} | 7D费率年化 ${fmt(rg.funding_7d_ann_pct, 1)}%`;
+
+      // Signal
+      const sg = d.signal || {};
+      const rp = d.risk_plan || {};
+      document.getElementById('sigDir').innerHTML = `<span class="pill ${rp.side}">${rp.side}</span> ${fmt(rp.approved_leverage, 2)}x`;
+      document.getElementById('sigSub').textContent = `4H收盘 ${sg.bar_time_utc?.slice(0,16)} UTC | 止损 ${rp.stop_px ? '$'+fmt(rp.stop_px,1) : '无'} | 强平参考 ${rp.est_liq_px ? '$'+fmt(rp.est_liq_px,1) : '无'}`;
+
+      // Paper
+      const st = d.paper?.state || {};
+      document.getElementById('paperEq').textContent = `$${fmt(st.equity_usdt, 2)}`;
+      document.getElementById('paperSub').textContent = `回撤 ${fmt(st.drawdown_pct, 2)}% | 持仓 ${fmt(st.pos_contracts, 2)}张 | 累计资金费 $${fmt(st.cum_funding_usdt, 2)}`;
+
+      // Risk KV
+      const riskItems = [
+        ['风控状态', rp.risk_state], ['回撤缩放系数', `${fmt(rp.dd_scale*100, 1)}%`],
+        ['批准有效杠杆', `${fmt(rp.approved_leverage, 2)}x`], ['逐仓设定倍数', `${rp.isolated_margin_leverage}x (逐仓)`],
+        ['合约名义价值', `$${fmt(rp.notional_usdt, 2)}`], ['OKX合约张数', `${fmt(rp.okx_contracts, 2)} 张 (${fmt(rp.btc_qty, 4)} BTC)`],
+        ['占用初始保证金', `$${fmt(rp.required_margin_usdt, 2)}`], ['单笔止损预算', `$${fmt(rp.est_stop_loss_usdt, 2)} (${fmt(rp.est_stop_loss_pct_eq, 2)}%)`],
+        ['参考止损价', rp.stop_px ? `$${fmt(rp.stop_px, 1)}` : '--'], ['预估强平价 / 距离', rp.est_liq_px ? `$${fmt(rp.est_liq_px, 1)} (${fmt(rp.liq_distance_pct, 1)}%)` : '--']
+      ];
+      document.getElementById('riskKv').innerHTML = riskItems.map(([k,v]) => `<div class="kv"><span>${k}</span><strong>${v}</strong></div>`).join('');
+      document.getElementById('riskWarn').textContent = (rp.warnings || []).join(' | ');
+
+      // OKX Demo KV
+      const ox = d.okx_demo || {};
+      const okxItems = ox.ok ? [
+        ['账户模式', '模拟盘 (x-simulated-trading: 1)'], ['合约标的', ox.inst_id],
+        ['USDT总权益', `$${fmt(ox.usdt_equity, 2)}`], ['可用保证金', `$${fmt(ox.usdt_available, 2)}`],
+        ['当前净持仓', `${fmt(ox.net_contracts, 2)} 张 (${fmt(ox.net_btc, 4)} BTC)`], ['未实现盈亏', `$${fmt(ox.unrealized_pnl_usdt, 2)}`],
+        ['开仓均价', ox.avg_entry_px ? `$${fmt(ox.avg_entry_px, 1)}` : '--'], ['模拟盘强平价', ox.liq_px ? `$${fmt(ox.liq_px, 1)}` : '--']
+      ] : [['连接状态', ox.error || '未配置 configs/okx_demo_secrets.local.json']];
+      document.getElementById('okxKv').innerHTML = okxItems.map(([k,v]) => `<div class="kv"><span>${k}</span><strong>${v}</strong></div>`).join('');
+
+      // Performance Table
+      const tbody = document.querySelector('#perfTable tbody');
+      tbody.innerHTML = Object.entries(d.comparison || {}).map(([k, m]) => `
+        <tr style="${k===mode ? 'background:rgba(247,147,26,.09);font-weight:600;' : ''}">
+          <td><span class="dot" style="background:${COLORS[k]||'#fff'};margin-right:6px"></span>${m.label}</td>
+          <td class="${m.total_return_pct>=0?'pos':'neg'}">${fmt(m.total_return_pct, 1)}%</td>
+          <td class="${m.cagr_pct>=0?'pos':'neg'}">${fmt(m.cagr_pct, 2)}%</td>
+          <td>${fmt(m.sharpe, 3)}</td>
+          <td>${fmt(m.sortino, 3)}</td>
+          <td class="neg">${fmt(m.max_drawdown_pct, 2)}%</td>
+          <td>${fmt(m.calmar, 3)}</td>
+          <td>${m.n_trades}</td>
+          <td>${fmt(m.win_rate_pct, 1)}%</td>
+          <td>${fmt(m.profit_factor, 2)}</td>
+          <td class="${m.total_funding_usd>=0?'pos':'neg'}">$${fmt(m.total_funding_usd, 0)}</td>
+          <td>$${fmt(m.total_fees_usd, 0)}</td>
+          <td class="${m.liquidations>0?'neg':'pos'}">${m.liquidations}</td>
+        </tr>`).join('');
+
+      // Trades table
+      document.querySelector('#tradesTable tbody').innerHTML = (d.recent_trades || []).map(t => `
+        <tr>
+          <td>${String(t.entry_time).slice(0,16)}</td>
+          <td><span class="pill ${t.side}">${t.side}</span></td>
+          <td>$${fmt(t.entry_px, 1)}</td>
+          <td>$${fmt(t.exit_px, 1)}</td>
+          <td class="${t.pnl_usd>=0?'pos':'neg'}">$${fmt(t.pnl_usd, 1)}</td>
+          <td>$${fmt(t.funding_usd, 1)}</td>
+          <td>${t.exit_reason}</td>
+        </tr>`).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--muted)">暂无已平仓记录</td></tr>';
+
+      // Paper log
+      document.querySelector('#paperTable tbody').innerHTML = (d.paper?.recent_signals || []).slice().reverse().map(r => `
+        <tr>
+          <td>${String(r.bar_time_utc).slice(0,16)}</td>
+          <td>${r.regime}</td>
+          <td><span class="pill ${r.direction}">${r.direction}</span></td>
+          <td>${fmt(r.approved_leverage, 2)}x</td>
+          <td>${fmt(r.okx_contracts, 2)}</td>
+          <td>${r.action}</td>
+          <td>$${fmt(r.equity_usdt, 1)}</td>
+        </tr>`).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--muted)">点击右上角“记录4H纸面信号”生成首条记录</td></tr>';
+
+      renderChart(d.curves_daily || {}, d.comparison || {});
+    }
+
+    function renderChart(curves, comp) {
+      const svg = document.getElementById('eqChart');
+      const keys = Object.keys(curves).filter(k => (curves[k] || []).length > 1);
+      if (!keys.length) return;
+      document.getElementById('chartLegend').innerHTML = keys.map(k =>
+        `<span><i class="dot" style="background:${COLORS[k]||'#fff'}"></i>${comp[k]?.label || k}</span>`).join('');
+
+      let minY = Infinity, maxY = -Infinity, maxLen = 0;
+      keys.forEach(k => {
+        maxLen = Math.max(maxLen, curves[k].length);
+        curves[k].forEach(p => { minY = Math.min(minY, p.equity); maxY = Math.max(maxY, p.equity); });
+      });
+      minY = Math.max(1000, minY * 0.92); maxY = maxY * 1.05;
+      const W = 1000, H = 280, padL = 62, padR = 16, padT = 14, padB = 26;
+      const mapX = (i, n) => padL + (i / Math.max(n - 1, 1)) * (W - padL - padR);
+      const mapY = v => padT + (1 - (Math.log(v) - Math.log(minY)) / Math.max(Math.log(maxY) - Math.log(minY), 1e-6)) * (H - padT - padB);
+
+      let html = '';
+      for (let g = 0; g <= 4; g++) {
+        const val = Math.exp(Math.log(minY) + (g / 4) * (Math.log(maxY) - Math.log(minY)));
+        const y = mapY(val);
+        html += `<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="#1f2a3d" stroke-dasharray="3,3"/>`;
+        html += `<text x="${padL-6}" y="${y+4}" fill="#8b9bb4" font-size="11" text-anchor="end">$${Math.round(val/1000)}k</text>`;
+      }
+      keys.forEach(k => {
+        const arr = curves[k];
+        const pts = arr.map((p, i) => `${mapX(i, arr.length).toFixed(1)},${mapY(p.equity).toFixed(1)}`).join(' ');
+        const sw = k === document.getElementById('modeSel').value ? 2.6 : 1.5;
+        html += `<polyline fill="none" stroke="${COLORS[k]||'#fff'}" stroke-width="${sw}" points="${pts}"/>`;
+      });
+      const base = curves[keys[0]];
+      [0, Math.floor(base.length/2), base.length-1].forEach(idx => {
+        const x = mapX(idx, base.length);
+        html += `<text x="${x}" y="${H-6}" fill="#8b9bb4" font-size="11" text-anchor="middle">${base[idx].date}</text>`;
+      });
+      svg.innerHTML = html;
+    }
+
+    async function refreshMarket() {
+      toast('正在从 OKX 拉取最新 4H/1D/资金费率数据...');
+      const r = await fetch('/api/refresh', {method:'POST'});
+      const d = await r.json();
+      toast(d.ok ? `刷新成功：4H共 ${d.meta.swap_4h_rows} 根K线` : '刷新失败: ' + d.error);
+      loadDashboard();
+    }
+    async function runPaperStep() {
+      const r = await fetch('/api/paper_step', {method:'POST'});
+      const d = await r.json();
+      toast(d.ok ? `纸面记录完成：${d.result.action} (净值 $${fmt(d.result.state.equity_usdt, 2)})` : '失败: ' + d.error);
+      loadDashboard();
+    }
+    async function syncOkxDemo(dryRun) {
+      if (!dryRun && !confirm('确认向 OKX 模拟盘 (x-simulated-trading: 1) 提交 BTC-USDT-SWAP 逐仓调仓单？')) return;
+      const r = await fetch('/api/okx_demo_sync', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({dry_run: dryRun})});
+      const d = await r.json();
+      toast(d.ok ? `${dryRun?'[干跑预览]':'[模拟盘已提交]'} ${d.action} | 目标 ${d.target_contracts}张 (当前 ${d.current_contracts}张)` : '失败: ' + d.error);
+      if (!dryRun) loadDashboard();
+    }
+
+    document.getElementById('modeSel').addEventListener('change', loadDashboard);
+    document.getElementById('startSel').addEventListener('change', loadDashboard);
+    loadDashboard();
+  </script>
+</body>
+</html>

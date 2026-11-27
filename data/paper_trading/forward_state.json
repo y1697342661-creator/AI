@@ -1,0 +1,13 @@
+{
+  "start_date": "2026-11-25",
+  "initial_capital": 100000.0,
+  "strategy_version": "v2.0.0",
+  "cash": 100000.0,
+  "shares": 0.0,
+  "pending_target_weight": 0.385232,
+  "peak_strategy_nav": 100000.0,
+  "bh_shares": 166.07105973057048,
+  "peak_bh_nav": 100000.0,
+  "total_cost_usd": 0.0,
+  "n_rebalances": 0
+}

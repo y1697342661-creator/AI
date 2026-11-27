@@ -1,0 +1,49 @@
+{
+  "ok": true,
+  "skipped": false,
+  "refreshed_at": "2026-11-27T16:49:41",
+  "symbols": {
+    "MU": {
+      "ok": true,
+      "source": "eastmoney_noop",
+      "rows": 10557,
+      "added": 0,
+      "last_date": "2026-11-25"
+    },
+    "SMH": {
+      "ok": true,
+      "source": "yahoo_noop",
+      "rows": 6660,
+      "added": 0,
+      "last_date": "2026-11-25"
+    },
+    "SOX": {
+      "ok": true,
+      "source": "yahoo_noop",
+      "rows": 8197,
+      "added": 0,
+      "last_date": "2026-11-25"
+    },
+    "SPY": {
+      "ok": true,
+      "source": "yahoo_noop",
+      "rows": 8515,
+      "added": 0,
+      "last_date": "2026-11-25"
+    },
+    "QQQ": {
+      "ok": true,
+      "source": "yahoo_noop",
+      "rows": 6973,
+      "added": 0,
+      "last_date": "2026-11-25"
+    },
+    "NVDA": {
+      "ok": true,
+      "source": "yahoo_noop",
+      "rows": 7005,
+      "added": 0,
+      "last_date": "2026-11-25"
+    }
+  }
+}
