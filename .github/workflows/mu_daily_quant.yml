@@ -48,12 +48,12 @@ jobs:
           PYTHONPATH: src
         run: python src/mu_quant/paper_trading/daily_runner.py --force-refresh
 
-      - name: Run 6-Asset Cross-Sector Rotation Data & Forward Scorecard
+      - name: Run 5-Asset Cross-Sector Rotation Data & Forward Paper Scorecard
         env:
           PYTHONPATH: src
         run: python src/mu_quant/rotation/runner.py
 
-      - name: Run OKX Simulated Trading Sync (6-Asset Top-2 Spot Rotation Only)
+      - name: Run OKX Simulated Trading Sync (XMU-USDT Live-Liquidity Spot Only)
         env:
           PYTHONPATH: src
           MU_SECRET_JSON: ${{ secrets.MU }}
@@ -89,8 +89,8 @@ jobs:
           fi
 
           if [ "$SHOULD_SYNC" = "true" ]; then
-            echo "Executing 6-Asset Top-2 Rotation OKX Simulated Trading sync (x-simulated-trading: 1, cash spot only)..."
-            python src/mu_quant/rotation/runner.py --no-refresh --sync-okx-demo
+            echo "Executing XMU-USDT OKX Simulated Trading sync (only stock token with live demo market-maker)..."
+            python src/mu_quant/paper_trading/okx_demo_runner.py
           else
             echo "Post-close data-only run (schedule=$SCHEDULE_CRON); skipping OKX Demo order outside US market hours."
           fi
