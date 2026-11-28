@@ -38,6 +38,7 @@ ALPACA_DATA_DIR = ROOT / "data" / "rotation"
 ALPACA_ORDERS_LOG = ALPACA_DATA_DIR / "alpaca_paper_orders.csv"
 ALPACA_SNAPSHOT_FILE = ALPACA_DATA_DIR / "alpaca_account_snapshot.json"
 ALPACA_EQUITY_CURVE_FILE = ALPACA_DATA_DIR / "alpaca_equity_curve.csv"
+ALPACA_RISK_STATE_FILE = ALPACA_DATA_DIR / "alpaca_risk_state.json"
 SCREENER_ALLOC_FILE = ROOT / "data" / "screener" / "latest_allocation.json"
 ALPACA_DATA_DIR.mkdir(parents=True, exist_ok=True)
 INITIAL_PAPER_EQUITY = 100_000.0
@@ -283,6 +284,124 @@ def load_screener_allocation(path: Path = SCREENER_ALLOC_FILE) -> dict[str, Any]
     return alloc
 
 
+def _load_risk_state() -> dict[str, Any]:
+    if not ALPACA_RISK_STATE_FILE.exists():
+        return {"peak_equity": INITIAL_PAPER_EQUITY, "trailing_stops": {}}
+    try:
+        data = json.loads(ALPACA_RISK_STATE_FILE.read_text(encoding="utf-8-sig"))
+        if isinstance(data, dict):
+            data.setdefault("peak_equity", INITIAL_PAPER_EQUITY)
+            data.setdefault("trailing_stops", {})
+            return data
+    except Exception:
+        pass
+    return {"peak_equity": INITIAL_PAPER_EQUITY, "trailing_stops": {}}
+
+
+def _save_risk_state(state: dict[str, Any]) -> None:
+    try:
+        ALPACA_RISK_STATE_FILE.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
+    except Exception:
+        log.exception("Failed to save alpaca_risk_state.json")
+
+
+def apply_execution_risk_guard(
+    target_weights: dict[str, float],
+    pos_map: dict[str, dict[str, Any]],
+    equity: float,
+    alloc: dict[str, Any],
+    risk_state: dict[str, Any] | None = None,
+    *,
+    dd_start: float = 0.15,
+    dd_full: float = 0.25,
+    dd_min_scale: float = 0.40,
+    fallback_stop_pct: float = 0.08,
+) -> tuple[dict[str, float], dict[str, Any], dict[str, Any]]:
+    """Execution-layer risk protection (independent of Screener brain):
+    1. Account-level smooth linear drawdown brake (-15% start -> -25% full 0.40x scale, auto-unlocks on recovery).
+    2. Position-level ratchet-up Trailing ATR Stop (stop only moves UP as price makes new highs; instant exit on breach).
+    """
+    state = dict(risk_state) if risk_state is not None else _load_risk_state()
+    peak_eq = max(float(state.get("peak_equity") or INITIAL_PAPER_EQUITY), float(equity), INITIAL_PAPER_EQUITY)
+    state["peak_equity"] = round(peak_eq, 2)
+    cur_dd = max(0.0, 1.0 - (equity / peak_eq)) if peak_eq > 0 else 0.0
+
+    # 1) Smooth linear drawdown brake
+    if cur_dd <= dd_start:
+        brake_scale = 1.0
+        brake_status = "NORMAL"
+    else:
+        frac = min(1.0, (cur_dd - dd_start) / max(1e-6, dd_full - dd_start))
+        brake_scale = round(1.0 - frac * (1.0 - dd_min_scale), 4)
+        brake_status = "FULL_BRAKE" if frac >= 1.0 else "SOFT_BRAKE"
+
+    # Build reference stop distance from screener allocation (2.5x ATR)
+    alloc_stop_map: dict[str, float] = {}
+    for p in alloc.get("positions") or []:
+        sym = str(p.get("symbol") or "").upper()
+        sp = p.get("stop_price")
+        if sym and sp is not None and float(sp) > 0:
+            alloc_stop_map[sym] = float(sp)
+
+    # 2) Ratchet-up trailing stop per currently held position
+    prev_stops: dict[str, Any] = dict(state.get("trailing_stops") or {})
+    new_stops: dict[str, Any] = {}
+    stopped_symbols: list[dict[str, Any]] = []
+    adjusted_tw = {k: float(v) for k, v in target_weights.items()}
+
+    for sym, pos in pos_map.items():
+        cur_px = float(pos.get("current_price") or 0.0)
+        entry_px = float(pos.get("avg_entry_price") or cur_px)
+        if cur_px <= 0:
+            continue
+        rec = prev_stops.get(sym) or {}
+        high_px = max(float(rec.get("high_price") or entry_px), entry_px, cur_px)
+        prev_stop = float(rec.get("stop_price") or 0.0)
+
+        # Estimate stop distance: prefer screener's 2.5x ATR distance, fallback to 8%
+        ref_stop = alloc_stop_map.get(sym)
+        if ref_stop and cur_px > ref_stop:
+            atr_dist = min(cur_px * 0.18, max(cur_px * 0.03, cur_px - ref_stop))
+        else:
+            atr_dist = high_px * fallback_stop_pct
+
+        # Ratchet UP only — never lower a trailing stop
+        cand_stop = max(prev_stop, high_px - atr_dist)
+
+        if cur_px < cand_stop:
+            stopped_symbols.append({
+                "symbol": sym,
+                "current_price": round(cur_px, 2),
+                "trailing_stop": round(cand_stop, 2),
+                "high_price": round(high_px, 2),
+            })
+            adjusted_tw.pop(sym, None)
+        else:
+            new_stops[sym] = {
+                "high_price": round(high_px, 3),
+                "stop_price": round(cand_stop, 3),
+                "updated_at": dt.datetime.now().isoformat(timespec="seconds"),
+            }
+
+    state["trailing_stops"] = new_stops
+
+    # Apply drawdown brake scaling to remaining target weights
+    if brake_scale < 1.0:
+        adjusted_tw = {s: round(w * brake_scale, 4) for s, w in adjusted_tw.items() if w * brake_scale > 0.005}
+
+    guard_summary = {
+        "peak_equity": round(peak_eq, 2),
+        "current_drawdown_pct": round(cur_dd * 100.0, 2),
+        "brake_status": brake_status,
+        "brake_scale": brake_scale,
+        "dd_start_pct": round(dd_start * 100.0, 1),
+        "dd_full_pct": round(dd_full * 100.0, 1),
+        "stopped_symbols": stopped_symbols,
+        "active_trailing_stops": new_stops,
+    }
+    return adjusted_tw, guard_summary, state
+
+
 def sync_screener_alpaca_paper(
     alloc: dict[str, Any] | None = None,
     *,
@@ -313,6 +432,14 @@ def sync_screener_alpaca_paper(
         for p in acct["positions"]
         if _US_TICKER_RE.match(str(p.get("symbol", "")).upper())
     }
+
+    # Apply execution-layer risk guard (Mid_-15/-25 smooth drawdown brake + ratchet-up Trailing ATR Stop)
+    target_weights, risk_guard, new_risk_state = apply_execution_risk_guard(
+        target_weights, pos_map, equity, alloc
+    )
+    if not dry_run:
+        _save_risk_state(new_risk_state)
+
     all_syms = sorted(set(pos_map.keys()) | set(target_weights.keys()))
     cur_weights = {s: (pos_map[s]["market_value"] / equity if (s in pos_map and equity > 0) else 0.0) for s in all_syms}
 
@@ -442,6 +569,7 @@ def sync_screener_alpaca_paper(
         "cash_usd": round(cash, 2),
         "cur_weights": {k: round(v, 4) for k, v in cur_weights.items()},
         "target_weights": {k: round(v, 4) for k, v in target_weights.items()},
+        "risk_guard": risk_guard,
         "actions_planned": actions_planned,
         "orders_executed": orders_executed,
     }

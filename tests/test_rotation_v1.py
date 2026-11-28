@@ -58,6 +58,38 @@ class TestScreenerAlpacaExecutor(unittest.TestCase):
         self.assertIsInstance(view["orders"], list)
         self.assertIsInstance(view["equity_curve"], list)
 
+    def test_05_execution_risk_guard_drawdown_brake_and_trailing_stop(self) -> None:
+        from mu_quant.rotation.alpaca_paper import apply_execution_risk_guard
+
+        tw = {"COST": 0.35, "AAPL": 0.25}
+        alloc = {"positions": [{"symbol": "COST", "stop_price": 920.0}, {"symbol": "AAPL", "stop_price": 330.0}]}
+        pos_map = {
+            "COST": {"current_price": 1000.0, "avg_entry_price": 980.0},
+            "AAPL": {"current_price": 350.0, "avg_entry_price": 340.0},
+        }
+        # 1) Normal equity (DD = 5% < 15%) -> scale 1.0, no stop hit
+        tw1, g1, st1 = apply_execution_risk_guard(tw, pos_map, 95_000.0, alloc, {"peak_equity": 100_000.0, "trailing_stops": {}})
+        self.assertEqual(g1["brake_status"], "NORMAL")
+        self.assertEqual(g1["brake_scale"], 1.0)
+        self.assertEqual(tw1, tw)
+        self.assertGreater(st1["trailing_stops"]["COST"]["stop_price"], 900.0)
+
+        # 2) Account DD = -20% (halfway between -15% and -25%) -> smooth 0.70x scale
+        tw2, g2, _ = apply_execution_risk_guard(tw, pos_map, 80_000.0, alloc, st1)
+        self.assertEqual(g2["brake_status"], "SOFT_BRAKE")
+        self.assertAlmostEqual(g2["brake_scale"], 0.70, places=2)
+        self.assertAlmostEqual(tw2["COST"], 0.35 * 0.70, places=3)
+
+        # 3) AAPL drops below its ratcheted trailing stop -> instant full exit of AAPL!
+        pos_drop = {
+            "COST": {"current_price": 1000.0, "avg_entry_price": 980.0},
+            "AAPL": {"current_price": 310.0, "avg_entry_price": 340.0},
+        }
+        tw3, g3, _ = apply_execution_risk_guard(tw, pos_drop, 95_000.0, alloc, st1)
+        self.assertNotIn("AAPL", tw3)
+        self.assertIn("COST", tw3)
+        self.assertEqual([x["symbol"] for x in g3["stopped_symbols"]], ["AAPL"])
+
 
 if __name__ == "__main__":
     unittest.main()

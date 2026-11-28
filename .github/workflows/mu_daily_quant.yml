@@ -1,4 +1,5 @@
 # US Stock Full-Market Screener (latest_allocation.json) -> Alpaca Paper Trading Cloud Auto-Executor (Zero Leverage)
+# Auto-handles US Daylight Saving Time (EDT/EST): always executes ~30 min after US market open (10:00 America/New_York)
 name: US Stocks Screener-Linked Alpaca Paper Auto-Executor
 
 on:
@@ -7,9 +8,10 @@ on:
     paths:
       - ".github/workflows/mu_daily_quant.yml"
   schedule:
-    # Beijing Mon-Fri 22:35 (5 min after US winter open, inside US summer session):
-    # Executes the latest allocation produced by us_screener_daily.yml (06:30 BJ) on Alpaca Paper Trading
-    - cron: "35 14 * * 1-5"
+    # Summer (EDT, UTC-4): 14:00 UTC = 10:00 AM New York (22:00 Beijing) — 30 min after open
+    - cron: "0 14 * * 1-5"
+    # Winter (EST, UTC-5): 15:00 UTC = 10:00 AM New York (23:00 Beijing) — 30 min after open
+    - cron: "0 15 * * 1-5"
   workflow_dispatch:
     inputs:
       execute_demo:
@@ -29,10 +31,42 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      - name: Check US Eastern Time (Auto DST Switch — Run at ~10:00 AM New York, Skip Off-Season Slot)
+        id: dst_gate
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          python3 - <<'EOF'
+          import datetime as dt, os
+          from zoneinfo import ZoneInfo
+
+          event = os.environ.get("EVENT_NAME", "")
+          ny_now = dt.datetime.now(ZoneInfo("America/New_York"))
+          print(f"Current New York time: {ny_now.strftime('%Y-%m-%d %H:%M:%S %Z')} (event={event})")
+
+          if event != "schedule":
+              print("Manual or push trigger: bypassing DST schedule gate.")
+              should_run = "true"
+          else:
+              # Execute only inside 09:50 ~ 10:45 America/New_York (avoids opening 20-30 min spread chaos)
+              mins = ny_now.hour * 60 + ny_now.minute
+              if 9 * 60 + 50 <= mins <= 10 * 60 + 45:
+                  print("Inside 10:00 AM New York execution window (30 min post-open). Proceeding.")
+                  should_run = "true"
+              else:
+                  print("Outside 10:00 AM New York window (off-season DST cron slot). Skipping cleanly.")
+                  should_run = "false"
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
+              fh.write(f"should_run={should_run}\n")
+          EOF
+
       - name: Checkout repository
+        if: steps.dst_gate.outputs.should_run == 'true'
         uses: actions/checkout@v4
 
       - name: Set up Python 3.12
+        if: steps.dst_gate.outputs.should_run == 'true'
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -40,9 +74,11 @@ jobs:
           cache-dependency-path: "requirements-mu.txt"
 
       - name: Install minimal dependencies
+        if: steps.dst_gate.outputs.should_run == 'true'
         run: pip install -r requirements-mu.txt
 
       - name: Execute Screener Allocation on Alpaca Paper Trading (paper-api.alpaca.markets ONLY)
+        if: steps.dst_gate.outputs.should_run == 'true'
         env:
           PYTHONPATH: src
           ALPACA_PAPER_JSON: ${{ secrets.ALPACA_PAPER || secrets.AMEREICA }}
@@ -66,7 +102,8 @@ jobs:
             python src/mu_quant/rotation/runner.py --from-screener --sync-alpaca-paper
           fi
 
-      - name: Commit updated Alpaca Paper Trading ledger & account snapshot
+      - name: Commit updated Alpaca Paper Trading ledger, risk state & account snapshot
+        if: steps.dst_gate.outputs.should_run == 'true'
         run: |
           git config user.name "us-screener-executor-bot"
           git config user.email "us-screener-executor-bot@users.noreply.github.com"
