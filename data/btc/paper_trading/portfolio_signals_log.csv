@@ -1,4 +1,0 @@
-﻿recorded_at,bar_time_utc,coin,weight,close_px,regime,direction,approved_leverage,okx_contracts,stop_px,demo_action
-2026-11-28T12:30:08,2026-11-27 20:00:00+00:00,BTC,0.334,59893.9,BEAR_TREND,FLAT,0.0,0.0,,BUY 19.03 contracts (0.1903 BTC)
-2026-11-28T12:30:15,2026-11-27 20:00:00+00:00,ETH,0.333,1661.74,BEAR_TREND,FLAT,0.0,0.0,,BUY 55.96 contracts (5.5960 ETH)
-2026-11-28T12:30:24,2026-11-28 00:00:00+00:00,SOL,0.333,71.69,BEAR_TREND,FLAT,0.0,0.0,,BUY 136.36 contracts (136.3600 SOL)
