@@ -26,11 +26,31 @@ OKX_BASE = "https://www.okx.com"
 SWAP_INST = "BTC-USDT-SWAP"
 SPOT_INST = "BTC-USDT"
 
+COIN_SPECS: dict[str, dict[str, Any]] = {
+    "BTC": {"swap_inst": "BTC-USDT-SWAP", "spot_inst": "BTC-USDT", "ct_val": 0.01, "lot_sz": 0.01, "min_sz": 0.01},
+    "ETH": {"swap_inst": "ETH-USDT-SWAP", "spot_inst": "ETH-USDT", "ct_val": 0.1, "lot_sz": 0.01, "min_sz": 0.01},
+    "SOL": {"swap_inst": "SOL-USDT-SWAP", "spot_inst": "SOL-USDT", "ct_val": 1.0, "lot_sz": 0.01, "min_sz": 0.01},
+}
+SUPPORTED_COINS = ("BTC", "ETH", "SOL")
+
 CSV_4H = RAW_DIR / "btc_usdt_swap_4h.csv"
 CSV_1D = RAW_DIR / "btc_usdt_swap_1d.csv"
 CSV_SPOT_1D = RAW_DIR / "btc_usdt_spot_1d.csv"
 CSV_FUNDING = RAW_DIR / "btc_usdt_swap_funding.csv"
 META_FILE = RAW_DIR / "_last_refresh.json"
+
+
+def _coin_paths(coin: str) -> dict[str, Path]:
+    c = coin.upper()
+    if c == "BTC":
+        return {"4h": CSV_4H, "1d": CSV_1D, "spot_1d": CSV_SPOT_1D, "funding": CSV_FUNDING}
+    lc = c.lower()
+    return {
+        "4h": RAW_DIR / f"{lc}_usdt_swap_4h.csv",
+        "1d": RAW_DIR / f"{lc}_usdt_swap_1d.csv",
+        "spot_1d": RAW_DIR / f"{lc}_usdt_spot_1d.csv",
+        "funding": RAW_DIR / f"{lc}_usdt_swap_funding.csv",
+    }
 
 
 def _get_json(path: str, retries: int = 4) -> dict[str, Any]:
@@ -162,60 +182,68 @@ def fetch_okx_funding_history(
     return df[["funding_ts_ms", "timestamp", "funding_rate", "realized_rate"]]
 
 
-def fetch_live_snapshot() -> dict[str, Any]:
-    """Fetch current live ticker, mark price, funding rate, and open interest for BTC-USDT-SWAP."""
-    tk = _get_json(f"/api/v5/market/ticker?instId={SWAP_INST}")["data"][0]
-    fr = _get_json(f"/api/v5/public/funding-rate?instId={SWAP_INST}")["data"][0]
-    oi = _get_json(f"/api/v5/public/open-interest?instType=SWAP&instId={SWAP_INST}")["data"][0]
-    spot = _get_json(f"/api/v5/market/ticker?instId={SPOT_INST}")["data"][0]
+def fetch_live_snapshot(coin: str = "BTC") -> dict[str, Any]:
+    """Fetch current live ticker, mark price, funding rate, and open interest for a coin SWAP."""
+    spec = COIN_SPECS[coin.upper()]
+    swap_inst = spec["swap_inst"]
+    spot_inst = spec["spot_inst"]
+    tk = _get_json(f"/api/v5/market/ticker?instId={swap_inst}")["data"][0]
+    fr = _get_json(f"/api/v5/public/funding-rate?instId={swap_inst}")["data"][0]
+    oi = _get_json(f"/api/v5/public/open-interest?instType=SWAP&instId={swap_inst}")["data"][0]
+    spot = _get_json(f"/api/v5/market/ticker?instId={spot_inst}")["data"][0]
     swap_px = float(tk["last"])
     spot_px = float(spot["last"])
     basis_bps = (swap_px / spot_px - 1.0) * 1e4 if spot_px > 0 else 0.0
     return {
         "fetched_at": dt.datetime.now().isoformat(timespec="seconds"),
-        "inst_id": SWAP_INST,
+        "coin": coin.upper(),
+        "inst_id": swap_inst,
         "last": swap_px,
         "bid": float(tk["bidPx"]),
         "ask": float(tk["askPx"]),
         "spread_bps": round((float(tk["askPx"]) - float(tk["bidPx"])) / swap_px * 1e4, 3),
         "spot_last": spot_px,
         "basis_bps": round(basis_bps, 2),
-        "vol_24h_usdt": round(float(tk["volCcy24h"]) * swap_px * 0.01, 2),
+        "vol_24h_usdt": round(float(tk["volCcy24h"]) * swap_px * spec["ct_val"], 2),
         "funding_rate": float(fr["fundingRate"]),
         "funding_rate_annual_pct": round(float(fr["fundingRate"]) * 3 * 365 * 100, 2),
         "next_funding_rate": float(fr["nextFundingRate"]) if fr.get("nextFundingRate") else None,
-        "oi_btc": round(float(oi["oiCcy"]), 2),
+        "oi_coin": round(float(oi["oiCcy"]), 2),
         "oi_usd_m": round(float(oi["oiCcy"]) * swap_px / 1e6, 2),
     }
 
 
-def refresh_btc_market_data(full_rebuild: bool = False) -> dict[str, Any]:
-    """Download/incrementally update 1D swap, 4H swap, 1D spot, and 8h funding history."""
+def refresh_coin_market_data(coin: str = "BTC", full_rebuild: bool = False) -> dict[str, Any]:
+    """Download/incrementally update 1D swap, 4H swap, 1D spot, and 8h funding history for one coin."""
+    c = coin.upper()
+    spec = COIN_SPECS[c]
+    paths = _coin_paths(c)
     since_1d = 1577836800000  # 2020-01-01 UTC
     since_4h = 1609459200000  # 2021-01-01 UTC
 
-    ex_1d = None if (full_rebuild or not CSV_1D.exists()) else pd.read_csv(CSV_1D)
-    ex_4h = None if (full_rebuild or not CSV_4H.exists()) else pd.read_csv(CSV_4H)
-    ex_spot = None if (full_rebuild or not CSV_SPOT_1D.exists()) else pd.read_csv(CSV_SPOT_1D)
-    ex_fr = None if (full_rebuild or not CSV_FUNDING.exists()) else pd.read_csv(CSV_FUNDING)
+    ex_1d = None if (full_rebuild or not paths["1d"].exists()) else pd.read_csv(paths["1d"])
+    ex_4h = None if (full_rebuild or not paths["4h"].exists()) else pd.read_csv(paths["4h"])
+    ex_spot = None if (full_rebuild or not paths["spot_1d"].exists()) else pd.read_csv(paths["spot_1d"])
+    ex_fr = None if (full_rebuild or not paths["funding"].exists()) else pd.read_csv(paths["funding"])
 
-    log.info("Refreshing BTC-USDT-SWAP 1D candles...")
-    df_1d = fetch_okx_candles(SWAP_INST, "1D", since_ts_ms=since_1d, max_pages=60, existing_df=ex_1d)
-    df_1d.to_csv(CSV_1D, index=False)
+    log.info("Refreshing %s 1D candles...", spec["swap_inst"])
+    df_1d = fetch_okx_candles(spec["swap_inst"], "1D", since_ts_ms=since_1d, max_pages=60, existing_df=ex_1d)
+    df_1d.to_csv(paths["1d"], index=False)
 
-    log.info("Refreshing BTC-USDT-SWAP 4H candles...")
-    df_4h = fetch_okx_candles(SWAP_INST, "4H", since_ts_ms=since_4h, max_pages=160, existing_df=ex_4h)
-    df_4h.to_csv(CSV_4H, index=False)
+    log.info("Refreshing %s 4H candles...", spec["swap_inst"])
+    df_4h = fetch_okx_candles(spec["swap_inst"], "4H", since_ts_ms=since_4h, max_pages=160, existing_df=ex_4h)
+    df_4h.to_csv(paths["4h"], index=False)
 
-    log.info("Refreshing BTC-USDT Spot 1D candles...")
-    df_spot = fetch_okx_candles(SPOT_INST, "1D", since_ts_ms=since_1d, max_pages=60, existing_df=ex_spot)
-    df_spot.to_csv(CSV_SPOT_1D, index=False)
+    log.info("Refreshing %s Spot 1D candles...", spec["spot_inst"])
+    df_spot = fetch_okx_candles(spec["spot_inst"], "1D", since_ts_ms=since_1d, max_pages=60, existing_df=ex_spot)
+    df_spot.to_csv(paths["spot_1d"], index=False)
 
-    log.info("Refreshing BTC-USDT-SWAP 8h funding history...")
-    df_fr = fetch_okx_funding_history(SWAP_INST, since_ts_ms=since_1d, max_pages=100, existing_df=ex_fr)
-    df_fr.to_csv(CSV_FUNDING, index=False)
+    log.info("Refreshing %s 8h funding history...", spec["swap_inst"])
+    df_fr = fetch_okx_funding_history(spec["swap_inst"], since_ts_ms=since_1d, max_pages=100, existing_df=ex_fr)
+    df_fr.to_csv(paths["funding"], index=False)
 
     meta = {
+        "coin": c,
         "refreshed_at": dt.datetime.now().isoformat(timespec="seconds"),
         "swap_1d_rows": len(df_1d),
         "swap_1d_range": [str(df_1d["timestamp"].iloc[0]), str(df_1d["timestamp"].iloc[-1])],
@@ -225,20 +253,38 @@ def refresh_btc_market_data(full_rebuild: bool = False) -> dict[str, Any]:
         "funding_rows": len(df_fr),
         "funding_range": [str(df_fr["timestamp"].iloc[0]), str(df_fr["timestamp"].iloc[-1])] if len(df_fr) else [],
     }
-    META_FILE.write_text(json.dumps(meta, indent=2, ensure_ascii=False), encoding="utf-8")
-    log.info("BTC data refresh complete: %s", meta)
+    if c == "BTC":
+        META_FILE.write_text(json.dumps(meta, indent=2, ensure_ascii=False), encoding="utf-8")
+    log.info("%s data refresh complete: %s", c, meta)
     return meta
 
 
-def load_btc_datasets() -> dict[str, pd.DataFrame]:
-    """Load local CSVs, merge funding rates & spot basis onto 4H and 1D bars (zero look-ahead)."""
-    if not CSV_1D.exists() or not CSV_4H.exists():
-        refresh_btc_market_data()
+def refresh_btc_market_data(full_rebuild: bool = False) -> dict[str, Any]:
+    return refresh_coin_market_data("BTC", full_rebuild=full_rebuild)
 
-    df_1d = pd.read_csv(CSV_1D)
-    df_4h = pd.read_csv(CSV_4H)
-    df_spot = pd.read_csv(CSV_SPOT_1D) if CSV_SPOT_1D.exists() else pd.DataFrame()
-    df_fr = pd.read_csv(CSV_FUNDING) if CSV_FUNDING.exists() else pd.DataFrame()
+
+def refresh_all_coins_data(coins: tuple[str, ...] = SUPPORTED_COINS, full_rebuild: bool = False) -> dict[str, Any]:
+    out = {}
+    for c in coins:
+        out[c] = refresh_coin_market_data(c, full_rebuild=full_rebuild)
+    META_FILE.write_text(
+        json.dumps({"refreshed_at": dt.datetime.now().isoformat(timespec="seconds"), "coins": out}, indent=2, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    return out
+
+
+def load_coin_datasets(coin: str = "BTC") -> dict[str, pd.DataFrame]:
+    """Load local CSVs for one coin, merge funding rates & spot basis onto 4H and 1D bars."""
+    c = coin.upper()
+    paths = _coin_paths(c)
+    if not paths["1d"].exists() or not paths["4h"].exists():
+        refresh_coin_market_data(c)
+
+    df_1d = pd.read_csv(paths["1d"])
+    df_4h = pd.read_csv(paths["4h"])
+    df_spot = pd.read_csv(paths["spot_1d"]) if paths["spot_1d"].exists() else pd.DataFrame()
+    df_fr = pd.read_csv(paths["funding"]) if paths["funding"].exists() else pd.DataFrame()
 
     for df in (df_1d, df_4h):
         df["dt"] = pd.to_datetime(df["ts_ms"], unit="ms", utc=True)
@@ -285,6 +331,14 @@ def load_btc_datasets() -> dict[str, pd.DataFrame]:
         fr_out = pd.DataFrame()
 
     return {"df_4h": df_4h, "df_1d": df_1d, "df_funding": fr_out}
+
+
+def load_btc_datasets() -> dict[str, pd.DataFrame]:
+    return load_coin_datasets("BTC")
+
+
+def load_all_coins_datasets(coins: tuple[str, ...] = SUPPORTED_COINS) -> dict[str, dict[str, pd.DataFrame]]:
+    return {c: load_coin_datasets(c) for c in coins}
 
 
 def validate_btc_data_quality(datasets: dict[str, pd.DataFrame]) -> dict[str, Any]:

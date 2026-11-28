@@ -35,6 +35,7 @@ def compute_contract_risk_plan(
     current_drawdown: float = 0.0,
     funding_7d_ann_pct: float = 0.0,
     cfg: BtcRiskConfig | None = None,
+    ct_val: float = OKX_BTC_SWAP_CT_VAL,
 ) -> dict[str, Any]:
     c = cfg or BtcRiskConfig()
 
@@ -72,9 +73,9 @@ def compute_contract_risk_plan(
 
     notional_usdt = abs(capped_lev) * equity_usdt
     btc_qty = notional_usdt / price if price > 0 else 0.0
-    # Convert to OKX BTC-USDT-SWAP contracts (1 contract = 0.01 BTC, lotSz = 0.01)
-    contracts = round(btc_qty / OKX_BTC_SWAP_CT_VAL, 2)
-    actual_btc = contracts * OKX_BTC_SWAP_CT_VAL
+    # Convert to OKX SWAP contracts (BTC: 0.01, ETH: 0.1, SOL: 1.0; lotSz = 0.01)
+    contracts = round(btc_qty / ct_val, 2)
+    actual_btc = contracts * ct_val
     actual_notional = actual_btc * price
 
     # Isolated margin leverage setting (use ceil(abs_lev) clamped to [1, 3] for healthy margin buffer)

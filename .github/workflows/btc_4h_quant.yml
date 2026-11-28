@@ -58,8 +58,8 @@ jobs:
           export OKX_DEMO_PASSPHRASE="${BTC_OKX_DEMO_PASSPHRASE:-$FALLBACK_PASSPHRASE}"
 
           if [ -z "$OKX_DEMO_API_KEY" ]; then
-            echo "No BTC_OKX_DEMO_API_KEY / OKX_DEMO_API_KEY secret configured; running paper ledger only."
-            python -m btc_quant.paper_trading.runner --refresh
+            echo "No BTC_OKX_DEMO_API_KEY / OKX_DEMO_API_KEY secret configured; running 3-coin paper ledger only."
+            python -m btc_quant.paper_trading.portfolio_runner --refresh
             exit 0
           fi
 
@@ -71,11 +71,11 @@ jobs:
           fi
 
           if [ "$SHOULD_EXEC" = "true" ]; then
-            echo "Executing BTC-USDT-SWAP OKX Simulated Trading sync (x-simulated-trading: 1, isolated)..."
-            python -m btc_quant.paper_trading.runner --refresh --sync-okx-demo --execute-demo
+            echo "Executing BTC+ETH+SOL 3-Coin OKX Simulated Trading sync (x-simulated-trading: 1, isolated)..."
+            python -m btc_quant.paper_trading.portfolio_runner --refresh --sync-okx-demo --execute-demo
           else
-            echo "Dry-run preview mode..."
-            python -m btc_quant.paper_trading.runner --refresh --sync-okx-demo
+            echo "Dry-run preview mode (BTC+ETH+SOL)..."
+            python -m btc_quant.paper_trading.portfolio_runner --refresh --sync-okx-demo
           fi
 
       - name: Commit updated BTC paper trading ledger & data

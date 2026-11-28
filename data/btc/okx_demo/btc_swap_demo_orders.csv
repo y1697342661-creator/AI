@@ -1,0 +1,4 @@
+﻿timestamp,inst_id,side,sz_contracts,ref_price,target_leverage,stop_loss_px,okx_code,okx_ord_id,okx_msg
+2026-11-28T12:06:30,BTC-USDT-SWAP,sell,19.03,60032.8,-0.446,63918.77,1,,All operations failed
+2026-11-28T12:06:37,ETH-USDT-SWAP,sell,55.96,1665.79,-0.365,1798.34,401,,"{""msg"":""This API Key does not have trading permission for the Crypto"",""code"":""50123""}"
+2026-11-28T12:06:45,SOL-USDT-SWAP,sell,136.41,71.71,-0.383,77.3,401,,"{""msg"":""This API Key does not have trading permission for the Crypto"",""code"":""50123""}"

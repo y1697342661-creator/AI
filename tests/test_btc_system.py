@@ -125,12 +125,15 @@ class TestBtcPerpQuantSystem(unittest.TestCase):
         self.assertEqual(halted["okx_contracts"], 0.0)
 
     def test_07_okx_demo_hard_safety_invariants(self) -> None:
-        """OKX swap channel MUST hardcode simulated trading, BTC-USDT-SWAP, isolated mode, <=3x cap."""
+        """OKX swap channel MUST hardcode simulated trading, whitelisted swaps, isolated mode, <=3x cap."""
         self.assertEqual(okx_demo_swap.ALLOWED_INST_ID, "BTC-USDT-SWAP")
+        self.assertEqual(set(okx_demo_swap.ALLOWED_INST_IDS), {"BTC-USDT-SWAP", "ETH-USDT-SWAP", "SOL-USDT-SWAP"})
         self.assertEqual(okx_demo_swap.ALLOWED_TD_MODE, "isolated")
         self.assertLessEqual(okx_demo_swap.MAX_ALLOWED_LEVERAGE, 3)
         src = inspect.getsource(okx_demo_swap._demo_private_request)
         self.assertIn('"x-simulated-trading": "1"', src)
+        with self.assertRaises(ValueError):
+            okx_demo_swap.get_demo_swap_account_state("DOGE-USDT-SWAP")
 
 
 if __name__ == "__main__":

@@ -29,6 +29,12 @@ log = get_logger("btc_quant.okx_demo_swap")
 
 OKX_BASE = "https://www.okx.com"
 ALLOWED_INST_ID = "BTC-USDT-SWAP"
+ALLOWED_INST_IDS = ("BTC-USDT-SWAP", "ETH-USDT-SWAP", "SOL-USDT-SWAP")
+INST_CT_VAL = {
+    "BTC-USDT-SWAP": 0.01,
+    "ETH-USDT-SWAP": 0.1,
+    "SOL-USDT-SWAP": 1.0,
+}
 ALLOWED_TD_MODE = "isolated"
 MAX_ALLOWED_LEVERAGE = 3
 
@@ -94,13 +100,16 @@ def _demo_private_request(method: str, path: str, payload: dict[str, Any] | None
     return _http_json(method, path, headers=headers, body=body)
 
 
-def get_demo_swap_account_state() -> dict[str, Any]:
-    """Read USDT equity and current BTC-USDT-SWAP position on OKX Simulated Trading account."""
+def get_demo_swap_account_state(inst_id: str = ALLOWED_INST_ID) -> dict[str, Any]:
+    """Read USDT equity and current SWAP position on OKX Simulated Trading account."""
+    if inst_id not in ALLOWED_INST_IDS:
+        raise ValueError(f"SAFETY BLOCK: {inst_id} not in whitelisted {ALLOWED_INST_IDS}")
+    ct_val = INST_CT_VAL[inst_id]
     has_env = bool(os.environ.get("OKX_DEMO_API_KEY") and os.environ.get("OKX_DEMO_SECRET_KEY"))
     if not has_env and not OKX_DEMO_SECRETS_FILE.exists():
         return {"configured": False, "error": "OKX demo secrets not configured"}
     bal = _demo_private_request("GET", "/api/v5/account/balance?ccy=USDT")
-    pos = _demo_private_request("GET", f"/api/v5/account/positions?instType=SWAP&instId={ALLOWED_INST_ID}")
+    pos = _demo_private_request("GET", f"/api/v5/account/positions?instType=SWAP&instId={inst_id}")
     if bal.get("code") != "0":
         return {"configured": True, "ok": False, "error": bal.get("msg", "OKX auth error")}
 
@@ -130,11 +139,12 @@ def get_demo_swap_account_state() -> dict[str, Any]:
         "configured": True,
         "ok": True,
         "simulated_only": True,
-        "inst_id": ALLOWED_INST_ID,
+        "inst_id": inst_id,
         "usdt_equity": round(usdt_eq, 2),
         "usdt_available": round(usdt_avail, 2),
         "net_contracts": round(net_contracts, 2),
-        "net_btc": round(net_contracts * OKX_BTC_SWAP_CT_VAL, 5),
+        "net_btc": round(net_contracts * ct_val, 5),
+        "net_coin_qty": round(net_contracts * ct_val, 5),
         "avg_entry_px": round(avg_px, 2),
         "unrealized_pnl_usdt": round(upl, 2),
         "liq_px": liq_px,
@@ -149,23 +159,25 @@ def sync_demo_swap_target(
     allocation_usdt: float | None = None,
     stop_loss_px: float | None = None,
     dry_run: bool = True,
+    inst_id: str = ALLOWED_INST_ID,
 ) -> dict[str, Any]:
-    """Rebalance OKX Simulated BTC-USDT-SWAP isolated position to match target_leverage.
+    """Rebalance OKX Simulated SWAP isolated position to match target_leverage.
 
     Defaults to `dry_run=True` for safety; set `dry_run=False` to actually submit
-    to OKX Simulated Trading (`x-simulated-trading: 1`). When opening/increasing a
-    position and `stop_loss_px` is provided, attaches an exchange-native OKX stop-loss
-    (`attachAlgoOrds`) so protection stays active 24/7 on OKX's matching engine.
+    to OKX Simulated Trading (`x-simulated-trading: 1`). Supports BTC/ETH/SOL SWAPs.
     """
+    if inst_id not in ALLOWED_INST_IDS:
+        raise ValueError(f"SAFETY BLOCK: {inst_id} not in whitelisted {ALLOWED_INST_IDS}")
+    ct_val = INST_CT_VAL[inst_id]
     iso_lev = max(1, min(MAX_ALLOWED_LEVERAGE, int(isolated_leverage)))
-    state = get_demo_swap_account_state()
+    state = get_demo_swap_account_state(inst_id=inst_id)
     if not state.get("ok"):
         return {"ok": False, "error": state.get("error", "Account state unavailable")}
 
     cap_usdt = float(allocation_usdt) if (allocation_usdt and allocation_usdt > 0) else float(state["usdt_equity"])
     capped_tgt = max(-float(MAX_ALLOWED_LEVERAGE), min(float(MAX_ALLOWED_LEVERAGE), float(target_leverage)))
     target_notional = capped_tgt * cap_usdt
-    target_contracts = round((target_notional / ref_price) / OKX_BTC_SWAP_CT_VAL, 2) if ref_price > 0 else 0.0
+    target_contracts = round((target_notional / ref_price) / ct_val, 2) if ref_price > 0 else 0.0
     cur_contracts = float(state["net_contracts"])
     delta_contracts = round(target_contracts - cur_contracts, 2)
 
@@ -173,7 +185,7 @@ def sync_demo_swap_target(
         "timestamp": dt.datetime.now().isoformat(timespec="seconds"),
         "simulated_only": True,
         "dry_run": dry_run,
-        "inst_id": ALLOWED_INST_ID,
+        "inst_id": inst_id,
         "td_mode": ALLOWED_TD_MODE,
         "isolated_leverage": iso_lev,
         "capital_base_usdt": round(cap_usdt, 2),
@@ -192,18 +204,19 @@ def sync_demo_swap_target(
 
     side = "buy" if delta_contracts > 0 else "sell"
     sz_str = f"{abs(delta_contracts):.2f}"
-    plan["action"] = f"{side.upper()} {sz_str} contracts ({abs(delta_contracts) * OKX_BTC_SWAP_CT_VAL:.4f} BTC)"
+    coin_sym = inst_id.split("-")[0]
+    plan["action"] = f"{side.upper()} {sz_str} contracts ({abs(delta_contracts) * ct_val:.4f} {coin_sym})"
 
     if not dry_run:
         # 1. Enforce isolated leverage cap on OKX demo account
         _demo_private_request(
             "POST",
             "/api/v5/account/set-leverage",
-            {"instId": ALLOWED_INST_ID, "lever": str(iso_lev), "mgnMode": ALLOWED_TD_MODE},
+            {"instId": inst_id, "lever": str(iso_lev), "mgnMode": ALLOWED_TD_MODE},
         )
         # 2. Build simulated market order payload (with optional exchange-native stop-loss)
         order_payload: dict[str, Any] = {
-            "instId": ALLOWED_INST_ID,
+            "instId": inst_id,
             "tdMode": ALLOWED_TD_MODE,
             "side": side,
             "ordType": "market",
@@ -215,7 +228,7 @@ def sync_demo_swap_target(
         if is_opening_or_adding and stop_loss_px and stop_loss_px > 0:
             order_payload["attachAlgoOrds"] = [
                 {
-                    "slTriggerPx": f"{float(stop_loss_px):.1f}",
+                    "slTriggerPx": f"{float(stop_loss_px):.2f}",
                     "slOrdPx": "-1",  # Market stop-loss on OKX matching engine
                     "slTriggerPxType": "mark",
                 }
@@ -223,12 +236,12 @@ def sync_demo_swap_target(
 
         resp = _demo_private_request("POST", "/api/v5/trade/order", order_payload)
         plan["order_response"] = resp
-        log.info("OKX Demo SWAP order (%s %s): code=%s msg=%s", side, sz_str, resp.get("code"), resp.get("msg"))
+        log.info("OKX Demo SWAP %s order (%s %s): code=%s msg=%s", inst_id, side, sz_str, resp.get("code"), resp.get("msg"))
 
         # Append to isolated demo orders ledger
         rec = {
             "timestamp": plan["timestamp"],
-            "inst_id": ALLOWED_INST_ID,
+            "inst_id": inst_id,
             "side": side,
             "sz_contracts": sz_str,
             "ref_price": ref_price,
