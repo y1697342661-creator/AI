@@ -15,6 +15,7 @@ import json
 import os
 import re
 import sys
+import time
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -402,24 +403,64 @@ def apply_execution_risk_guard(
     return adjusted_tw, guard_summary, state
 
 
+def get_alpaca_clock() -> dict[str, Any]:
+    code, clk = _alpaca_request("GET", "/v2/clock")
+    if code != 200 or not isinstance(clk, dict):
+        return {"ok": False, "is_open": False, "raw": clk}
+    return {
+        "ok": True,
+        "is_open": bool(clk.get("is_open", False)),
+        "next_open": clk.get("next_open"),
+        "next_close": clk.get("next_close"),
+    }
+
+
+def cancel_all_open_orders_and_wait(timeout_sec: float = 8.0) -> list[dict[str, Any]]:
+    """Cancel all open Alpaca Paper orders and wait until they clear (prevents duplicate stacking)."""
+    _alpaca_request("DELETE", "/v2/orders")
+    deadline = time.time() + timeout_sec
+    remaining = get_alpaca_open_orders()
+    while remaining and time.time() < deadline:
+        # Try explicit per-order cancel if bulk cancel left accepted weekend orders
+        for o in remaining:
+            if o.get("id"):
+                _alpaca_request("DELETE", f"/v2/orders/{o['id']}")
+        time.sleep(0.8)
+        remaining = get_alpaca_open_orders()
+    return remaining
+
+
 def sync_screener_alpaca_paper(
     alloc: dict[str, Any] | None = None,
     *,
     rebalance_tol: float = 0.02,
     min_order_usd: float = 15.0,
     dry_run: bool = False,
+    allow_when_closed: bool = False,
 ) -> dict[str, Any]:
     """Sync Alpaca Paper Trading (`paper-api.alpaca.markets` ONLY) directly to the Screener's `latest_allocation.json`.
 
-    - Exits any currently held stock that is no longer in `target_weights` (full liquidation first).
-    - Trims overweight positions, then buys underweight / newly screened positions with cash only (zero leverage).
-    - Cancels stale pending orders before submitting fresh rebalance orders.
-    - Persists post-sync account snapshot & equity curve for dashboard visibility.
+    - Blocks order submission when US market is closed (unless allow_when_closed=True) to prevent weekend stacking.
+    - Cancels stale pending orders and waits for confirmation before placing fresh orders.
+    - Applies execution-layer risk guard (-15/-25 smooth drawdown brake + ratchet-up Trailing ATR Stop).
+    - Exits exited positions first, buys with cash only (zero leverage).
     """
     if alloc is None:
         alloc = load_screener_allocation()
     target_weights: dict[str, float] = dict(alloc.get("target_weights") or {})
-    ver = str(alloc.get("version") or "screener-v2.0.0")
+    ver = str(alloc.get("version") or "screener-v2.1.0")
+
+    # Block weekend / after-hours order stacking unless explicitly overridden
+    if not dry_run and not allow_when_closed:
+        clk = get_alpaca_clock()
+        if clk.get("ok") and not clk.get("is_open"):
+            # Still refresh snapshot & cancel any stale duplicate orders cleanly? No, just refuse new orders!
+            return {
+                "ok": True,
+                "paper_only": True,
+                "skipped": True,
+                "reason": f"US market is currently CLOSED (next open: {clk.get('next_open')}). Refusing to queue orders outside market hours.",
+            }
 
     acct = get_alpaca_paper_account()
     if not acct.get("ok"):
@@ -444,7 +485,14 @@ def sync_screener_alpaca_paper(
     cur_weights = {s: (pos_map[s]["market_value"] / equity if (s in pos_map and equity > 0) else 0.0) for s in all_syms}
 
     if not dry_run:
-        _alpaca_request("DELETE", "/v2/orders")
+        leftover = cancel_all_open_orders_and_wait(timeout_sec=8.0)
+        if leftover:
+            return {
+                "ok": False,
+                "paper_only": True,
+                "error": f"Aborting rebalance: {len(leftover)} stale open orders did not cancel in time.",
+                "leftover_orders": leftover,
+            }
 
     actions_planned: list[dict[str, Any]] = []
     orders_executed: list[dict[str, Any]] = []

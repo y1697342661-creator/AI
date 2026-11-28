@@ -1,12 +1,9 @@
 # US Stock Full-Market Screener (latest_allocation.json) -> Alpaca Paper Trading Cloud Auto-Executor (Zero Leverage)
 # Auto-handles US Daylight Saving Time (EDT/EST): always executes ~30 min after US market open (10:00 America/New_York)
+# NEVER triggers on git push (prevents weekend/after-hours duplicate orders).
 name: US Stocks Screener-Linked Alpaca Paper Auto-Executor
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/mu_daily_quant.yml"
   schedule:
     # Summer (EDT, UTC-4): 14:00 UTC = 10:00 AM New York (22:00 Beijing) — 30 min after open
     - cron: "0 14 * * 1-5"
@@ -14,10 +11,14 @@ on:
     - cron: "0 15 * * 1-5"
   workflow_dispatch:
     inputs:
-      execute_demo:
-        description: "Auto-rebalance Alpaca Paper Trading from data/screener/latest_allocation.json (paper-api ONLY)"
-        type: boolean
-        default: true
+      action:
+        description: "Action: rebalance (during market hours) / cancel_open_orders (clean weekend duplicates) / dry_run"
+        type: choice
+        default: "rebalance"
+        options:
+          - rebalance
+          - cancel_open_orders
+          - dry_run
 
 permissions:
   contents: write
@@ -45,10 +46,9 @@ jobs:
           print(f"Current New York time: {ny_now.strftime('%Y-%m-%d %H:%M:%S %Z')} (event={event})")
 
           if event != "schedule":
-              print("Manual or push trigger: bypassing DST schedule gate.")
+              print("Manual trigger: bypassing DST schedule gate.")
               should_run = "true"
           else:
-              # Execute only inside 09:50 ~ 10:45 America/New_York (avoids opening 20-30 min spread chaos)
               mins = ny_now.hour * 60 + ny_now.minute
               if 9 * 60 + 50 <= mins <= 10 * 60 + 45:
                   print("Inside 10:00 AM New York execution window (30 min post-open). Proceeding.")
@@ -85,7 +85,7 @@ jobs:
           ALPACA_PAPER_API_KEY: ${{ secrets.ALPACA_PAPER_API_KEY }}
           ALPACA_PAPER_SECRET_KEY: ${{ secrets.ALPACA_PAPER_SECRET_KEY }}
           EVENT_NAME: ${{ github.event_name }}
-          INPUT_EXECUTE: ${{ inputs.execute_demo }}
+          INPUT_ACTION: ${{ inputs.action || 'rebalance' }}
           VAR_AUTO_EXECUTE: ${{ vars.ROTATION_AUTO_EXECUTE }}
         run: |
           if [ -z "$ALPACA_PAPER_JSON" ] && [ -z "$ALPACA_PAPER_API_KEY" ]; then
@@ -94,7 +94,9 @@ jobs:
             exit 0
           fi
 
-          if [ "$EVENT_NAME" = "workflow_dispatch" ] && [ "$INPUT_EXECUTE" = "false" ]; then
+          if [ "$EVENT_NAME" = "workflow_dispatch" ] && [ "$INPUT_ACTION" = "cancel_open_orders" ]; then
+            python -c "from mu_quant.rotation.alpaca_paper import cancel_all_open_orders_and_wait, get_alpaca_paper_account, get_alpaca_open_orders, save_alpaca_account_snapshot; rem = cancel_all_open_orders_and_wait(10.0); print('Remaining open orders:', len(rem)); acct = get_alpaca_paper_account(); save_alpaca_account_snapshot(acct, get_alpaca_open_orders()) if acct.get('ok') else None"
+          elif [ "$EVENT_NAME" = "workflow_dispatch" ] && [ "$INPUT_ACTION" = "dry_run" ]; then
             python src/mu_quant/rotation/runner.py --from-screener --sync-alpaca-paper --dry-run
           elif [ "$VAR_AUTO_EXECUTE" = "false" ]; then
             python src/mu_quant/rotation/runner.py --from-screener --sync-alpaca-paper --dry-run
