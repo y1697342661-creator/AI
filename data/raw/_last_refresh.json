@@ -1,49 +1,49 @@
 {
   "ok": true,
   "skipped": false,
-  "refreshed_at": "2026-11-27T12:47:48",
+  "refreshed_at": "2026-11-27T22:53:27",
   "symbols": {
     "MU": {
       "ok": true,
-      "source": "eastmoney_noop",
-      "rows": 10557,
-      "added": 0,
-      "last_date": "2026-11-25"
+      "source": "eastmoney",
+      "rows": 10558,
+      "added": 1,
+      "last_date": "2026-11-27"
     },
     "SMH": {
       "ok": true,
-      "source": "eastmoney_noop",
-      "rows": 6660,
-      "added": 0,
-      "last_date": "2026-11-25"
+      "source": "eastmoney",
+      "rows": 6661,
+      "added": 1,
+      "last_date": "2026-11-27"
     },
     "SOX": {
       "ok": true,
-      "source": "yahoo_noop",
-      "rows": 8197,
-      "added": 0,
-      "last_date": "2026-11-25"
+      "source": "yahoo",
+      "rows": 8198,
+      "added": 1,
+      "last_date": "2026-11-27"
     },
     "SPY": {
       "ok": true,
-      "source": "eastmoney_noop",
-      "rows": 8515,
-      "added": 0,
-      "last_date": "2026-11-25"
+      "source": "eastmoney",
+      "rows": 8516,
+      "added": 1,
+      "last_date": "2026-11-27"
     },
     "QQQ": {
       "ok": true,
-      "source": "eastmoney_noop",
-      "rows": 6973,
-      "added": 0,
-      "last_date": "2026-11-25"
+      "source": "eastmoney",
+      "rows": 6974,
+      "added": 1,
+      "last_date": "2026-11-27"
     },
     "NVDA": {
       "ok": true,
-      "source": "eastmoney_noop",
-      "rows": 7005,
-      "added": 0,
-      "last_date": "2026-11-25"
+      "source": "eastmoney",
+      "rows": 7006,
+      "added": 1,
+      "last_date": "2026-11-27"
     }
   }
 }
