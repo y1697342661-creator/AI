@@ -22,8 +22,10 @@ if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
 from btc_quant.backtest.engine import PerpBacktestConfig, run_perp_backtest
-from btc_quant.config import load_active_config
+from btc_quant.config import OKX_DEMO_DIR, PAPER_DIR, load_active_config
 from btc_quant.data.loader import (
+    COIN_SPECS,
+    SUPPORTED_COINS,
     fetch_live_snapshot,
     load_btc_datasets,
     refresh_btc_market_data,
@@ -34,6 +36,7 @@ from btc_quant.features.indicators import build_1d_features, build_4h_features
 from btc_quant.logs.logger import get_logger
 from btc_quant.market_regime.regime import latest_regime_summary
 from btc_quant.paper_trading.engine import get_paper_summary, record_paper_step
+from btc_quant.paper_trading.portfolio_runner import DEMO_EQUITY_LOG, record_demo_equity_snapshot
 from btc_quant.risk.manager import BtcRiskConfig, compute_contract_risk_plan
 from btc_quant.strategies.perp_strategies import generate_strategy_signals, latest_signal_snapshot
 
@@ -136,12 +139,29 @@ def build_dashboard_payload(
 
     try:
         okx_demo = get_demo_swap_account_state()
+        okx_demo_3coin = {c: get_demo_swap_account_state(COIN_SPECS[c]["swap_inst"]) for c in SUPPORTED_COINS}
     except Exception as exc:
         okx_demo = {"configured": False, "error": str(exc)}
+        okx_demo_3coin = {}
+
+    # Load OKX simulated account real-time equity curve & forward paper NAV curve
+    demo_curve = []
+    if DEMO_EQUITY_LOG.exists():
+        ddf = pd.read_csv(DEMO_EQUITY_LOG, encoding="utf-8-sig")
+        demo_curve = ddf.tail(500).fillna(0).to_dict(orient="records")
+
+    paper_nav_curve = []
+    pnav_file = PAPER_DIR / "btc_forward_nav.csv"
+    if pnav_file.exists():
+        pdf = pd.read_csv(pnav_file, encoding="utf-8-sig")
+        if not pdf.empty:
+            base_p = float(pdf["equity_usdt"].iloc[0]) or 100_000.0
+            pdf["return_pct"] = ((pdf["equity_usdt"] / base_p) - 1.0) * 100.0
+            paper_nav_curve = pdf.tail(500).fillna(0).to_dict(orient="records")
 
     return _clean(
         {
-            "version": cfg.get("version", "v1.0.0"),
+            "version": cfg.get("version", "v3.2.0"),
             "selected_mode": mode,
             "data_audit": qa,
             "live_snapshot": live,
@@ -150,9 +170,12 @@ def build_dashboard_payload(
             "risk_plan": risk_plan,
             "comparison": comparison,
             "curves_daily": curves_daily,
+            "demo_equity_curve": demo_curve,
+            "paper_nav_curve": paper_nav_curve,
             "recent_trades": selected_trades,
             "paper": paper,
             "okx_demo": okx_demo,
+            "okx_demo_3coin": okx_demo_3coin,
         }
     )
 
@@ -212,6 +235,9 @@ class BtcDashboardHandler(BaseHTTPRequestHandler):
                 signal = latest_signal_snapshot(df_4h_f, mode=strat_cfg.get("default_mode", "dual_horizon_ensemble"), params=strat_cfg)
                 res = record_paper_step(signal, regime, funding_rate_8h=float(df_4h_f["funding_rate"].iloc[-1]))
                 self._send_json({"ok": True, "result": res})
+            elif parsed.path == "/api/demo_snapshot":
+                rec = record_demo_equity_snapshot()
+                self._send_json({"ok": bool(rec), "snapshot": rec})
             elif parsed.path == "/api/okx_demo_sync":
                 dry_run = bool(body.get("dry_run", True))
                 alloc = body.get("allocation_usdt")

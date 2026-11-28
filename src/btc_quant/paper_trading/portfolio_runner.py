@@ -20,7 +20,7 @@ _SRC = Path(__file__).resolve().parents[2]
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from btc_quant.config import PAPER_DIR, load_active_config
+from btc_quant.config import OKX_DEMO_DIR, PAPER_DIR, load_active_config
 from btc_quant.data.loader import (
     COIN_SPECS,
     SUPPORTED_COINS,
@@ -38,6 +38,37 @@ from btc_quant.strategies.perp_strategies import latest_signal_snapshot
 
 log = get_logger("btc_quant.portfolio_runner")
 PORTFOLIO_LOG = PAPER_DIR / "portfolio_signals_log.csv"
+DEMO_EQUITY_LOG = OKX_DEMO_DIR / "demo_equity_curve.csv"
+
+
+def record_demo_equity_snapshot() -> dict[str, Any] | None:
+    """Append current OKX Simulated Trading USDT equity & 3-coin positions to demo_equity_curve.csv."""
+    try:
+        states = {c: get_demo_swap_account_state(COIN_SPECS[c]["swap_inst"]) for c in SUPPORTED_COINS}
+    except Exception as exc:
+        log.warning("Failed to snapshot OKX demo equity: %s", exc)
+        return None
+    if not states["BTC"].get("ok"):
+        return None
+
+    eq = float(states["BTC"]["usdt_equity"])
+    upl = sum(float(states[c].get("unrealized_pnl_usdt", 0.0)) for c in SUPPORTED_COINS)
+    old_df = pd.read_csv(DEMO_EQUITY_LOG, encoding="utf-8-sig") if DEMO_EQUITY_LOG.exists() else pd.DataFrame()
+    base_eq = float(old_df["usdt_equity"].iloc[0]) if (not old_df.empty and float(old_df["usdt_equity"].iloc[0]) > 0) else eq
+    ret_pct = round((eq / base_eq - 1.0) * 100.0, 4) if base_eq > 0 else 0.0
+
+    rec = {
+        "timestamp": dt.datetime.now().isoformat(timespec="seconds"),
+        "usdt_equity": round(eq, 2),
+        "return_pct": ret_pct,
+        "unrealized_pnl_usdt": round(upl, 2),
+        "btc_contracts": states["BTC"]["net_contracts"],
+        "eth_contracts": states["ETH"]["net_contracts"],
+        "sol_contracts": states["SOL"]["net_contracts"],
+    }
+    comb = pd.concat([old_df, pd.DataFrame([rec])], ignore_index=True)
+    comb.to_csv(DEMO_EQUITY_LOG, index=False, encoding="utf-8-sig")
+    return rec
 
 
 def run_portfolio_cycle(
@@ -148,10 +179,13 @@ def run_portfolio_cycle(
     else:
         new_df.to_csv(PORTFOLIO_LOG, index=False, encoding="utf-8-sig")
 
+    demo_eq_snap = record_demo_equity_snapshot() if sync_okx_demo else None
+
     return {
-        "version": cfg.get("version", "v2.0.0"),
+        "version": cfg.get("version", "v3.2.0"),
         "timestamp": dt.datetime.now().isoformat(timespec="seconds"),
         "total_demo_equity_usdt": total_demo_equity,
+        "demo_equity_snapshot": demo_eq_snap,
         "weights": weights,
         "coins": coin_results,
     }

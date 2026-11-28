@@ -112,7 +112,16 @@
     </section>
 
     <section class="card">
-      <h3>净值曲线对比（初始 $100,000 · 计入8bps双边费滑 + 8小时资金费率）</h3>
+      <h3>
+        <span>OKX 模拟盘实盘净值 & 收益率折线图（每4H云端自动记录）</span>
+        <button onclick="recordDemoSnap()" style="padding:4px 10px;font-size:12px;">+ 立即记录当前净值点</button>
+      </h3>
+      <div class="legend" id="demoChartLegend"></div>
+      <div class="chart-wrap" style="height:240px;"><svg id="demoEqChart" viewBox="0 0 1000 230" preserveAspectRatio="none"></svg></div>
+    </section>
+
+    <section class="card">
+      <h3>历史回测净值曲线对比（初始 $100,000 · 计入8bps双边费滑 + 8小时资金费率）</h3>
       <div class="legend" id="chartLegend"></div>
       <div class="chart-wrap"><svg id="eqChart" viewBox="0 0 1000 280" preserveAspectRatio="none"></svg></div>
     </section>
@@ -270,7 +279,78 @@
           <td>$${fmt(r.equity_usdt, 1)}</td>
         </tr>`).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--muted)">点击右上角“记录4H纸面信号”生成首条记录</td></tr>';
 
+      renderDemoChart(d.demo_equity_curve || [], d.paper_nav_curve || []);
       renderChart(d.curves_daily || {}, d.comparison || {});
+    }
+
+    function renderDemoChart(demoArr, paperArr) {
+      const svg = document.getElementById('demoEqChart');
+      const legend = document.getElementById('demoChartLegend');
+      const latestDemo = demoArr.length ? demoArr[demoArr.length - 1] : null;
+      const latestPaper = paperArr.length ? paperArr[paperArr.length - 1] : null;
+      legend.innerHTML =
+        `<span><i class="dot" style="background:#10b981"></i>OKX 模拟盘收益率 (${latestDemo ? fmt(latestDemo.return_pct, 2) + '% | $' + fmt(latestDemo.usdt_equity, 2) : '暂无数据'})</span>` +
+        `<span><i class="dot" style="background:#f7931a"></i>本地前瞻纸面收益率 (${latestPaper ? fmt(latestPaper.return_pct, 2) + '% | $' + fmt(latestPaper.equity_usdt, 2) : '暂无数据'})</span>`;
+
+      const allVals = [
+        ...demoArr.map(p => Number(p.return_pct || 0)),
+        ...paperArr.map(p => Number(p.return_pct || 0)),
+        0
+      ];
+      let minY = Math.min(...allVals), maxY = Math.max(...allVals);
+      const span = Math.max(maxY - minY, 1.0);
+      minY -= span * 0.15; maxY += span * 0.15;
+
+      const W = 1000, H = 230, padL = 58, padR = 18, padT = 14, padB = 26;
+      const mapY = v => padT + (1 - (v - minY) / Math.max(maxY - minY, 1e-6)) * (H - padT - padB);
+      let html = '';
+
+      for (let g = 0; g <= 4; g++) {
+        const val = minY + (g / 4) * (maxY - minY);
+        const y = mapY(val);
+        html += `<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="#1f2a3d" stroke-dasharray="3,3"/>`;
+        html += `<text x="${padL-6}" y="${y+4}" fill="#8b9bb4" font-size="11" text-anchor="end">${val >= 0 ? '+' : ''}${val.toFixed(2)}%</text>`;
+      }
+      // 0% baseline
+      const y0 = mapY(0);
+      html += `<line x1="${padL}" y1="${y0}" x2="${W-padR}" y2="${y0}" stroke="#475569" stroke-width="1"/>`;
+
+      const drawSeries = (arr, color, key) => {
+        if (!arr.length) return;
+        const mapX = i => padL + (arr.length === 1 ? 0.5 : i / (arr.length - 1)) * (W - padL - padR);
+        if (arr.length === 1) {
+          html += `<circle cx="${mapX(0)}" cy="${mapY(Number(arr[0][key]||0))}" r="5" fill="${color}"/>`;
+          return;
+        }
+        const pts = arr.map((p, i) => `${mapX(i).toFixed(1)},${mapY(Number(p[key]||0)).toFixed(1)}`).join(' ');
+        html += `<polyline fill="none" stroke="${color}" stroke-width="2.5" points="${pts}"/>`;
+        arr.forEach((p, i) => {
+          if (arr.length <= 40 || i === arr.length - 1) {
+            html += `<circle cx="${mapX(i).toFixed(1)}" cy="${mapY(Number(p[key]||0)).toFixed(1)}" r="3.2" fill="${color}"/>`;
+          }
+        });
+      };
+
+      drawSeries(paperArr, '#f7931a', 'return_pct');
+      drawSeries(demoArr, '#10b981', 'return_pct');
+
+      const ref = demoArr.length >= paperArr.length ? demoArr : paperArr;
+      if (ref.length) {
+        const getT = p => String(p.timestamp || p.bar_time_utc || '').slice(5, 16);
+        const idxs = ref.length === 1 ? [0] : [0, Math.floor(ref.length / 2), ref.length - 1];
+        idxs.forEach(idx => {
+          const x = padL + (ref.length === 1 ? 0.5 : idx / (ref.length - 1)) * (W - padL - padR);
+          html += `<text x="${x}" y="${H-6}" fill="#8b9bb4" font-size="11" text-anchor="middle">${getT(ref[idx])}</text>`;
+        });
+      }
+      svg.innerHTML = html;
+    }
+
+    async function recordDemoSnap() {
+      const r = await fetch('/api/demo_snapshot', {method:'POST'});
+      const d = await r.json();
+      toast(d.ok ? `已记录模拟盘净值：$${fmt(d.snapshot.usdt_equity, 2)} (${fmt(d.snapshot.return_pct, 2)}%)` : '记录失败');
+      loadDashboard();
     }
 
     function renderChart(curves, comp) {
