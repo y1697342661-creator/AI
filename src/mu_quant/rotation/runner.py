@@ -10,6 +10,7 @@ _SRC = Path(__file__).resolve().parents[2]
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
+from mu_quant.rotation.alpaca_paper import sync_rotation_alpaca_paper
 from mu_quant.rotation.engine import (
     compute_rotation_signal,
     load_rotation_config,
@@ -20,10 +21,11 @@ from mu_quant.rotation.engine import (
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="6-Asset Top-2 Trend Rotation Runner (OKX Simulated Trading Only)")
+    parser = argparse.ArgumentParser(description="7-Asset Top-2 Trend Rotation Runner (Paper/Simulated Only)")
     parser.add_argument("--no-refresh", action="store_true", help="Use cached daily CSVs without network fetch")
-    parser.add_argument("--sync-okx-demo", action="store_true", help="Sync whitelisted 6 X*-USDT spot positions on OKX Demo")
-    parser.add_argument("--dry-run", action="store_true", help="Preview OKX Demo rebalance orders without submitting")
+    parser.add_argument("--sync-okx-demo", action="store_true", help="Sync whitelisted X*-USDT spot positions on OKX Demo")
+    parser.add_argument("--sync-alpaca-paper", action="store_true", help="Sync 7 US stocks on Alpaca Paper Trading (paper-api ONLY)")
+    parser.add_argument("--dry-run", action="store_true", help="Preview rebalance orders without submitting")
     args = parser.parse_args()
 
     cfg = load_rotation_config()
@@ -44,6 +46,13 @@ def main() -> int:
         m60 = f"{s['mom60']*100:+.1f}%" if s["mom60"] is not None else "N/A"
         dv = f"{s['dvol21']*100:.1f}%" if s["dvol21"] is not None else "N/A"
         print(f"  {s['symbol']:<5} ({s['okx_inst_id']:<10}) 收盘=${s['close']:<8.2f} {st} 60日={m60:<7} 下行波动={dv:<6} 目标={s['target_weight']*100:5.1f}%")
+
+    if args.sync_alpaca_paper:
+        print("-" * 72)
+        res = sync_rotation_alpaca_paper(sig, cfg, dry_run=args.dry_run)
+        print(json.dumps(res, ensure_ascii=False, indent=2))
+        print("=" * 72)
+        return 0 if res.get("ok") else 1
 
     if args.sync_okx_demo:
         print("-" * 72)

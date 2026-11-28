@@ -48,10 +48,35 @@ jobs:
           PYTHONPATH: src
         run: python src/mu_quant/paper_trading/daily_runner.py --force-refresh
 
-      - name: Run 5-Asset Cross-Sector Rotation Data & Forward Paper Scorecard
+      - name: Run 7-Asset Cross-Sector Rotation Data, Paper Scorecard & Alpaca Paper Auto-Sync
         env:
           PYTHONPATH: src
-        run: python src/mu_quant/rotation/runner.py
+          ALPACA_PAPER_JSON: ${{ secrets.ALPACA_PAPER }}
+          ALPACA_PAPER_API_KEY: ${{ secrets.ALPACA_PAPER_API_KEY }}
+          ALPACA_PAPER_SECRET_KEY: ${{ secrets.ALPACA_PAPER_SECRET_KEY }}
+          EVENT_NAME: ${{ github.event_name }}
+          SCHEDULE_CRON: ${{ github.event.schedule }}
+          INPUT_EXECUTE: ${{ inputs.execute_demo }}
+          VAR_AUTO_EXECUTE: ${{ vars.MU_AUTO_EXECUTE_DEMO }}
+        run: |
+          python src/mu_quant/rotation/runner.py
+          HAS_ALPACA="false"
+          if [ -n "$ALPACA_PAPER_JSON" ] || [ -n "$ALPACA_PAPER_API_KEY" ]; then
+            HAS_ALPACA="true"
+          fi
+          if [ "$HAS_ALPACA" = "true" ]; then
+            if [ "$EVENT_NAME" = "workflow_dispatch" ] && [ "$INPUT_EXECUTE" = "true" ]; then
+              python src/mu_quant/rotation/runner.py --no-refresh --sync-alpaca-paper
+            elif [ "$EVENT_NAME" = "push" ] && [ "$VAR_AUTO_EXECUTE" != "false" ]; then
+              python src/mu_quant/rotation/runner.py --no-refresh --sync-alpaca-paper
+            elif [ "$SCHEDULE_CRON" = "35 14 * * 1-5" ] && [ "$VAR_AUTO_EXECUTE" != "false" ]; then
+              python src/mu_quant/rotation/runner.py --no-refresh --sync-alpaca-paper
+            else
+              echo "Post-close data-only run; skipping Alpaca Paper order outside US market hours."
+            fi
+          else
+            echo "No ALPACA_PAPER secret configured yet; updated rotation paper scorecard only."
+          fi
 
       - name: Run OKX Simulated Trading Sync (XMU-USDT Live-Liquidity Spot Only)
         env:

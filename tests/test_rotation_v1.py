@@ -36,6 +36,10 @@ class TestRotationV1(unittest.TestCase):
             self.assertGreaterEqual(w, 0.0)
             self.assertLessEqual(w, cfg["rules"]["max_weight_per_asset"] + 1e-9, f"{sym} weight exceeded cap")
 
+    def test_03_alpaca_paper_hard_safety_lock(self) -> None:
+        from mu_quant.rotation.alpaca_paper import ALPACA_PAPER_BASE
+        self.assertEqual(ALPACA_PAPER_BASE, "https://paper-api.alpaca.markets")
+
 
 if __name__ == "__main__":
     unittest.main()
