@@ -46,7 +46,7 @@ jobs:
       - name: Run 7-Asset Cross-Sector Rotation Data, Paper Scorecard & Alpaca Paper Auto-Sync
         env:
           PYTHONPATH: src
-          ALPACA_PAPER_JSON: ${{ secrets.ALPACA_PAPER }}
+          ALPACA_PAPER_JSON: ${{ secrets.ALPACA_PAPER || secrets.AMEREICA }}
           ALPACA_PAPER_API_KEY: ${{ secrets.ALPACA_PAPER_API_KEY }}
           ALPACA_PAPER_SECRET_KEY: ${{ secrets.ALPACA_PAPER_SECRET_KEY }}
           EVENT_NAME: ${{ github.event_name }}
