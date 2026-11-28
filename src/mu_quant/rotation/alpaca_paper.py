@@ -34,14 +34,18 @@ log = get_logger("mu_quant.alpaca_paper")
 # HARDCODED PAPER TRADING ENDPOINT ONLY — NEVER LIVE
 ALPACA_PAPER_BASE = "https://paper-api.alpaca.markets"
 SECRETS_FILE = CONFIGS_DIR / "alpaca_paper_secrets.local.json"
-ALPACA_ORDERS_LOG = ROOT / "data" / "rotation" / "alpaca_paper_orders.csv"
+ALPACA_DATA_DIR = ROOT / "data" / "rotation"
+ALPACA_ORDERS_LOG = ALPACA_DATA_DIR / "alpaca_paper_orders.csv"
+ALPACA_SNAPSHOT_FILE = ALPACA_DATA_DIR / "alpaca_account_snapshot.json"
+ALPACA_EQUITY_CURVE_FILE = ALPACA_DATA_DIR / "alpaca_equity_curve.csv"
 SCREENER_ALLOC_FILE = ROOT / "data" / "screener" / "latest_allocation.json"
-ALPACA_ORDERS_LOG.parent.mkdir(parents=True, exist_ok=True)
+ALPACA_DATA_DIR.mkdir(parents=True, exist_ok=True)
+INITIAL_PAPER_EQUITY = 100_000.0
 _US_TICKER_RE = re.compile(r"^[A-Z]{1,5}$")
 
 
 def _load_alpaca_paper_secrets() -> dict[str, Any]:
-    # 1) Single JSON secret (GitHub Secret `ALPACA_PAPER`)
+    # 1) Single JSON secret (GitHub Secret `ALPACA_PAPER` or `AMEREICA`)
     raw_json = (os.environ.get("ALPACA_PAPER_JSON") or "").strip()
     if raw_json:
         try:
@@ -80,7 +84,7 @@ def _alpaca_request(method: str, path: str, payload: dict[str, Any] | None = Non
         "APCA-API-KEY-ID": sec["apiKey"],
         "APCA-API-SECRET-KEY": sec["secretKey"],
         "Accept": "application/json",
-        "User-Agent": "mu-quant-rotation/1.0",
+        "User-Agent": "us-screener-alpaca-paper/2.0",
     }
     if body is not None:
         headers["Content-Type"] = "application/json"
@@ -104,23 +108,149 @@ def get_alpaca_paper_account() -> dict[str, Any]:
         return {"ok": False, "status": code, "error": acc}
     code_p, pos = _alpaca_request("GET", "/v2/positions")
     positions = pos if code_p == 200 and isinstance(pos, list) else []
+
+    equity = float(acc.get("equity") or 0.0)
+    last_equity = float(acc.get("last_equity") or equity)
+    cash = float(acc.get("cash") or 0.0)
+    daily_pl = equity - last_equity
+    daily_plpc = (daily_pl / last_equity) if last_equity > 0 else 0.0
+    total_return_usd = equity - INITIAL_PAPER_EQUITY
+    total_return_pct = (total_return_usd / INITIAL_PAPER_EQUITY) if INITIAL_PAPER_EQUITY > 0 else 0.0
+
+    pos_list: list[dict[str, Any]] = []
+    for p in positions:
+        mv = float(p.get("market_value") or 0.0)
+        pos_list.append({
+            "symbol": str(p.get("symbol") or "").upper(),
+            "qty": float(p.get("qty") or 0.0),
+            "avg_entry_price": float(p.get("avg_entry_price") or 0.0),
+            "current_price": float(p.get("current_price") or 0.0),
+            "cost_basis": float(p.get("cost_basis") or 0.0),
+            "market_value": mv,
+            "weight": round(mv / equity, 4) if equity > 0 else 0.0,
+            "unrealized_pl": float(p.get("unrealized_pl") or 0.0),
+            "unrealized_plpc": float(p.get("unrealized_plpc") or 0.0),
+            "change_today": float(p.get("change_today") or 0.0),
+        })
+    pos_list.sort(key=lambda x: x["market_value"], reverse=True)
+
     return {
         "ok": True,
         "paper_only": True,
+        "synced_at": dt.datetime.now().isoformat(timespec="seconds"),
         "account_number": acc.get("account_number"),
         "status": acc.get("status"),
-        "equity": float(acc.get("equity") or 0.0),
-        "cash": float(acc.get("cash") or 0.0),
-        "positions": [
-            {
-                "symbol": p.get("symbol"),
-                "qty": float(p.get("qty") or 0.0),
-                "market_value": float(p.get("market_value") or 0.0),
-                "unrealized_pl": float(p.get("unrealized_pl") or 0.0),
-                "unrealized_plpc": float(p.get("unrealized_plpc") or 0.0),
-            }
-            for p in positions
-        ],
+        "initial_equity": INITIAL_PAPER_EQUITY,
+        "equity": round(equity, 2),
+        "last_equity": round(last_equity, 2),
+        "cash": round(cash, 2),
+        "invested_value": round(sum(x["market_value"] for x in pos_list), 2),
+        "daily_pl": round(daily_pl, 2),
+        "daily_plpc": round(daily_plpc, 6),
+        "total_return_usd": round(total_return_usd, 2),
+        "total_return_pct": round(total_return_pct, 6),
+        "positions": pos_list,
+    }
+
+
+def get_alpaca_open_orders() -> list[dict[str, Any]]:
+    code, rows = _alpaca_request("GET", "/v2/orders?status=open&limit=50")
+    if code != 200 or not isinstance(rows, list):
+        return []
+    out: list[dict[str, Any]] = []
+    for o in rows:
+        out.append({
+            "id": str(o.get("id") or ""),
+            "symbol": str(o.get("symbol") or "").upper(),
+            "side": str(o.get("side") or "").upper(),
+            "notional": float(o["notional"]) if o.get("notional") not in (None, "") else None,
+            "qty": float(o["qty"]) if o.get("qty") not in (None, "") else None,
+            "status": str(o.get("status") or ""),
+            "submitted_at": str(o.get("submitted_at") or ""),
+        })
+    return out
+
+
+def save_alpaca_account_snapshot(
+    acct: dict[str, Any],
+    open_orders: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Persist latest Alpaca Paper account snapshot & update daily equity curve CSV."""
+    snap = dict(acct)
+    snap["open_orders"] = open_orders if open_orders is not None else []
+    ALPACA_SNAPSHOT_FILE.write_text(json.dumps(snap, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    today_str = dt.date.today().isoformat()
+    row = {
+        "date": today_str,
+        "synced_at": snap.get("synced_at", dt.datetime.now().isoformat(timespec="seconds")),
+        "equity": snap.get("equity", INITIAL_PAPER_EQUITY),
+        "cash": snap.get("cash", INITIAL_PAPER_EQUITY),
+        "invested_value": snap.get("invested_value", 0.0),
+        "total_return_pct": snap.get("total_return_pct", 0.0),
+        "daily_pl": snap.get("daily_pl", 0.0),
+        "positions_count": len(snap.get("positions", [])),
+    }
+    if ALPACA_EQUITY_CURVE_FILE.exists():
+        df = pd.read_csv(ALPACA_EQUITY_CURVE_FILE, encoding="utf-8-sig")
+        df = df[df["date"].astype(str) != today_str]
+        df = pd.concat([df, pd.DataFrame([row])], ignore_index=True)
+    else:
+        df = pd.DataFrame([row])
+    df.sort_values("date").to_csv(ALPACA_EQUITY_CURVE_FILE, index=False, encoding="utf-8-sig")
+    return snap
+
+
+def load_alpaca_portfolio_view(try_live: bool = False) -> dict[str, Any]:
+    """Unified dashboard read model: live Alpaca Paper API (if keys exist & requested) or latest cloud snapshot + ledger."""
+    live_error: str | None = None
+    source = "cloud_snapshot"
+    snapshot: dict[str, Any] | None = None
+
+    if try_live:
+        try:
+            acct = get_alpaca_paper_account()
+            if acct.get("ok"):
+                open_orders = get_alpaca_open_orders()
+                snapshot = save_alpaca_account_snapshot(acct, open_orders)
+                source = "live_alpaca_paper"
+            else:
+                live_error = str(acct.get("error") or "Alpaca API error")
+        except Exception as exc:  # noqa: BLE001
+            live_error = str(exc)
+
+    if snapshot is None and ALPACA_SNAPSHOT_FILE.exists():
+        try:
+            snapshot = json.loads(ALPACA_SNAPSHOT_FILE.read_text(encoding="utf-8-sig"))
+        except Exception:
+            snapshot = None
+
+    equity_curve: list[dict[str, Any]] = []
+    if ALPACA_EQUITY_CURVE_FILE.exists():
+        try:
+            equity_curve = pd.read_csv(ALPACA_EQUITY_CURVE_FILE, encoding="utf-8-sig").to_dict(orient="records")
+        except Exception:
+            equity_curve = []
+
+    orders: list[dict[str, Any]] = []
+    if ALPACA_ORDERS_LOG.exists():
+        try:
+            orders = pd.read_csv(ALPACA_ORDERS_LOG, encoding="utf-8-sig").tail(60).iloc[::-1].to_dict(orient="records")
+        except Exception:
+            orders = []
+
+    if snapshot is None:
+        source = "orders_ledger_only"
+
+    return {
+        "ok": True,
+        "paper_only": True,
+        "source": source,
+        "live_error": live_error,
+        "initial_equity": INITIAL_PAPER_EQUITY,
+        "snapshot": snapshot,
+        "equity_curve": equity_curve,
+        "orders": orders,
     }
 
 
@@ -157,6 +287,7 @@ def sync_screener_alpaca_paper(
     - Exits any currently held stock that is no longer in `target_weights` (full liquidation first).
     - Trims overweight positions, then buys underweight / newly screened positions with cash only (zero leverage).
     - Cancels stale pending orders before submitting fresh rebalance orders.
+    - Persists post-sync account snapshot & equity curve for dashboard visibility.
     """
     if alloc is None:
         alloc = load_screener_allocation()
@@ -281,6 +412,14 @@ def sync_screener_alpaca_paper(
         pd.concat([df_ord, pd.DataFrame(orders_executed)], ignore_index=True).to_csv(
             ALPACA_ORDERS_LOG, index=False, encoding="utf-8-sig"
         )
+
+    # 3) Always refresh & persist latest account snapshot + equity curve for local dashboard
+    try:
+        latest_acct = get_alpaca_paper_account()
+        if latest_acct.get("ok"):
+            save_alpaca_account_snapshot(latest_acct, get_alpaca_open_orders())
+    except Exception:  # noqa: BLE001
+        log.exception("Failed to persist Alpaca account snapshot")
 
     all_ok = all(o["ok"] for o in orders_executed) if orders_executed else True
     return {

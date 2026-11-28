@@ -66,15 +66,15 @@ jobs:
             python src/mu_quant/rotation/runner.py --from-screener --sync-alpaca-paper
           fi
 
-      - name: Commit updated Alpaca Paper Trading order ledger
+      - name: Commit updated Alpaca Paper Trading ledger & account snapshot
         run: |
           git config user.name "us-screener-executor-bot"
           git config user.email "us-screener-executor-bot@users.noreply.github.com"
-          git add data/rotation/alpaca_paper_orders.csv
+          git add data/rotation/
           if ! git diff --cached --quiet; then
-            git commit -m "chore(alpaca): screener-linked paper trading rebalance [skip ci]"
+            git commit -m "chore(alpaca): screener-linked paper trading rebalance & snapshot [skip ci]"
             git pull --rebase origin main
             git push origin main
           else
-            echo "No Alpaca order ledger changes to commit."
+            echo "No Alpaca order ledger or snapshot changes to commit."
           fi

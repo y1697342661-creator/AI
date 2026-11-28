@@ -21,7 +21,7 @@ if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
 from mu_quant.logs.logger import get_logger
-from mu_quant.rotation.alpaca_paper import ALPACA_ORDERS_LOG
+from mu_quant.rotation.alpaca_paper import ALPACA_ORDERS_LOG, load_alpaca_portfolio_view
 
 log = get_logger("us_screener.dashboard")
 STATIC_DIR = Path(__file__).resolve().parent / "static"
@@ -79,6 +79,16 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 self._send_json(_clean_json(res))
             except Exception as exc:  # noqa: BLE001
                 log.exception("Screener API error")
+                self._send_json({"ok": False, "error": str(exc)}, status=500)
+            return
+
+        if parsed.path == "/api/alpaca/portfolio":
+            qs = urllib.parse.parse_qs(parsed.query)
+            try_live = qs.get("live", ["0"])[0] in ("1", "true", "yes")
+            try:
+                self._send_json(_clean_json(load_alpaca_portfolio_view(try_live=try_live)))
+            except Exception as exc:  # noqa: BLE001
+                log.exception("Alpaca portfolio API error")
                 self._send_json({"ok": False, "error": str(exc)}, status=500)
             return
 

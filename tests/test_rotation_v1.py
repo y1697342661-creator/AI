@@ -50,6 +50,14 @@ class TestScreenerAlpacaExecutor(unittest.TestCase):
         for w in tw.values():
             self.assertLessEqual(w, 0.40 + 1e-9)
 
+    def test_04_portfolio_view_returns_paper_only_ledger(self) -> None:
+        from mu_quant.rotation.alpaca_paper import load_alpaca_portfolio_view
+        view = load_alpaca_portfolio_view(try_live=False)
+        self.assertTrue(view["ok"])
+        self.assertTrue(view["paper_only"])
+        self.assertIsInstance(view["orders"], list)
+        self.assertIsInstance(view["equity_curve"], list)
+
 
 if __name__ == "__main__":
     unittest.main()
