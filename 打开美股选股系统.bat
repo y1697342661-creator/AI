@@ -1,6 +1,10 @@
 @echo off
 cd /d "%~dp0"
-echo Starting US Stock Screener & Quant Dashboard Server...
+echo [1/2] Syncing latest cloud screener & Alpaca trading data...
+if exist "C:\Program Files\Git\cmd\git.exe" (
+    "C:\Program Files\Git\cmd\git.exe" pull --rebase --autostash origin main >nul 2>&1
+)
+echo [2/2] Starting US Stock Screener & Trading Dashboard Server...
 for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":8501 " ^| findstr "LISTENING"') do (
     taskkill /PID %%a /F >nul 2>&1
 )
