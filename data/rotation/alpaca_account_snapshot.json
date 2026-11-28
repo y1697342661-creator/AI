@@ -1,7 +1,7 @@
 {
   "ok": true,
   "paper_only": true,
-  "synced_at": "2026-11-28T12:20:15",
+  "synced_at": "2026-11-28T12:32:32",
   "account_number": "PA33PUKOC",
   "status": "ACTIVE",
   "initial_equity": 100000.0,
@@ -14,96 +14,5 @@
   "total_return_usd": 0.0,
   "total_return_pct": 0.0,
   "positions": [],
-  "open_orders": [
-    {
-      "id": "bd9af383-483d-4e41-a78d-ccb06566195b",
-      "symbol": "TSLA",
-      "side": "BUY",
-      "notional": 5000.0,
-      "qty": null,
-      "status": "accepted",
-      "submitted_at": "2026-11-28T12:20:14.993762559Z"
-    },
-    {
-      "id": "c68cb698-b0b4-40f8-ba22-c10cf2de98d6",
-      "symbol": "ISRG",
-      "side": "BUY",
-      "notional": 5000.0,
-      "qty": null,
-      "status": "accepted",
-      "submitted_at": "2026-11-28T12:20:14.975283029Z"
-    },
-    {
-      "id": "d8468f7d-4db2-4033-b80c-9d26599a3214",
-      "symbol": "AAPL",
-      "side": "BUY",
-      "notional": 5000.0,
-      "qty": null,
-      "status": "accepted",
-      "submitted_at": "2026-11-28T12:20:14.954387526Z"
-    },
-    {
-      "id": "2b69917d-279f-4e0b-a12d-b67a845936a5",
-      "symbol": "WMT",
-      "side": "BUY",
-      "notional": 32500.0,
-      "qty": null,
-      "status": "accepted",
-      "submitted_at": "2026-11-28T12:20:14.872610189Z"
-    },
-    {
-      "id": "919daa3b-32fe-41a0-b2c8-09ac32097a04",
-      "symbol": "COST",
-      "side": "BUY",
-      "notional": 32500.0,
-      "qty": null,
-      "status": "accepted",
-      "submitted_at": "2026-11-28T12:20:14.849404691Z"
-    },
-    {
-      "id": "55fe3158-8816-4d63-ad89-625cce9db3ae",
-      "symbol": "ABBV",
-      "side": "BUY",
-      "notional": 5000.0,
-      "qty": null,
-      "status": "accepted",
-      "submitted_at": "2026-11-28T11:29:24.59139Z"
-    },
-    {
-      "id": "3dd7efd0-6d76-4722-b31d-0199a0e82271",
-      "symbol": "V",
-      "side": "BUY",
-      "notional": 5000.0,
-      "qty": null,
-      "status": "accepted",
-      "submitted_at": "2026-11-28T11:29:24.421902Z"
-    },
-    {
-      "id": "a0c19a99-3f8f-48ed-adb8-09d54b8b9652",
-      "symbol": "MA",
-      "side": "BUY",
-      "notional": 5000.0,
-      "qty": null,
-      "status": "accepted",
-      "submitted_at": "2026-11-28T11:29:24.242737Z"
-    },
-    {
-      "id": "56c38653-793b-4c7d-a701-c6a9d1671a42",
-      "symbol": "WMT",
-      "side": "BUY",
-      "notional": 32500.0,
-      "qty": null,
-      "status": "accepted",
-      "submitted_at": "2026-11-28T11:29:24.067471Z"
-    },
-    {
-      "id": "5f8e4895-4efb-4eca-bf99-13ae036c8226",
-      "symbol": "COST",
-      "side": "BUY",
-      "notional": 32500.0,
-      "qty": null,
-      "status": "accepted",
-      "submitted_at": "2026-11-28T11:29:23.887238Z"
-    }
-  ]
+  "open_orders": []
 }
