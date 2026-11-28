@@ -1,5 +1,5 @@
 {
-  "version": "screener-v2.0.0",
+  "version": "screener-v2.1.0",
   "name": "美股攻守兼备·全市场漏斗选股与动态配置系统 (零杠杆 · MA200 · DVol风控)",
   "benchmark": "QQQ",
   "macro_benchmarks": ["SPY", "QQQ"],
@@ -31,6 +31,8 @@
     "defense_slots": 2,
     "max_per_sector": 2,
     "max_single_weight": 0.35,
+    "incumbent_buffer_pts": 5.0,
+    "rebalance_cadence_days": 14,
     "regimes": {
       "BULL_OFFENSE":    {"label": "牛市进攻", "offense_budget": 0.80, "defense_budget": 0.20, "cash_floor": 0.00},
       "NEUTRAL_BALANCE": {"label": "震荡平衡", "offense_budget": 0.45, "defense_budget": 0.45, "cash_floor": 0.10},
@@ -40,7 +42,7 @@
   "presets": {
     "core_momentum": {
       "label": "核心进攻动量",
-      "desc": "进攻池/全市场：站上200日年线 + 60日跑赢QQQ + 风险调整动量领先 + 避开极端超买"
+      "desc": "v2.1实证优化：站上200日年线 + 60日跑赢QQQ + 风险调整动量/20日加速/多头排列（不因RSI高踢掉主升浪龙头）"
     },
     "defense_shield": {
       "label": "防守避险盾牌",

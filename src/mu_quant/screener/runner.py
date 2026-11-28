@@ -45,6 +45,7 @@ def render_markdown_report(res: dict[str, Any], top_n: int = 15) -> str:
         f"# 美股攻守兼备·全市场选股与动态配置日报 ({res['signal_date']})",
         "",
         f"- **市场状态**：**`{reg['regime']}`（{reg['label']}）** — {reg['reason']}",
+        f"- **调仓动作**：`{plan.get('rebalance_action', 'REBALANCE')}` — {plan.get('rebalance_reason', '')}",
         f"- **攻守仓位建议**：进攻 `{plan['offense_weight']*100:.1f}%` · 防守 `{plan['defense_weight']*100:.1f}%` · 现金 `{plan['cash_weight']*100:.1f}%`（总仓位 `{plan['total_invested_weight']*100:.1f}%`，严格零杠杆）",
         f"- **扫描模式**：{mode_str} | **基准 QQQ 60日**：`{_fmt_pct(b['mom60'])}` | **年线上占比**：`{mb['above_ma200']}/{mb['total']}` ({mb['above_ma200_pct']*100:.1f}%)",
         "",

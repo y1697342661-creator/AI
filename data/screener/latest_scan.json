@@ -1,9 +1,9 @@
 {
   "ok": true,
-  "version": "screener-v2.0.0",
+  "version": "screener-v2.1.0",
   "name": "美股攻守兼备·全市场漏斗选股与动态配置系统 (零杠杆 · MA200 · DVol风控)",
   "signal_date": "2026-11-27",
-  "computed_at": "2026-11-28T11:14:30",
+  "computed_at": "2026-11-28T20:12:48",
   "scan_mode": "full_market",
   "funnel": {
     "us_market_total": 13887,
@@ -16,7 +16,7 @@
   "presets": {
     "core_momentum": {
       "label": "核心进攻动量",
-      "desc": "进攻池/全市场：站上200日年线 + 60日跑赢QQQ + 风险调整动量领先 + 避开极端超买"
+      "desc": "v2.1实证优化：站上200日年线 + 60日跑赢QQQ + 风险调整动量/20日加速/多头排列（不因RSI高踢掉主升浪龙头）"
     },
     "defense_shield": {
       "label": "防守避险盾牌",
@@ -64,22 +64,26 @@
     "cash_floor": 0.2
   },
   "portfolio_plan": {
-    "version": "screener-v2.0.0",
+    "version": "screener-v2.1.0",
     "signal_date": "2026-11-27",
-    "computed_at": "2026-11-28T11:14:30",
+    "computed_at": "2026-11-28T20:12:48",
+    "last_rebalance_date": "2026-11-27",
+    "rebalance_action": "HOLD",
+    "rebalance_reason": "HOLD_BIWEEKLY_WINDOW (持仓均健康，距下次常规换股 14 天)",
+    "next_rebalance_in_days": 14,
     "regime": "BEAR_DEFENSE",
     "regime_label": "熊市防守",
     "selected_symbols": [
-      "MA",
-      "V",
-      "ABBV",
+      "AAPL",
+      "ISRG",
+      "TSLA",
       "COST",
       "WMT"
     ],
     "target_weights": {
-      "MA": 0.05,
-      "V": 0.05,
-      "ABBV": 0.05,
+      "AAPL": 0.05,
+      "ISRG": 0.05,
+      "TSLA": 0.05,
       "COST": 0.325,
       "WMT": 0.325
     },
@@ -89,37 +93,40 @@
     "cash_weight": 0.2,
     "positions": [
       {
-        "symbol": "MA",
+        "symbol": "AAPL",
         "sleeve": "OFFENSE",
-        "sector": "全市场·工业",
-        "theme": "万事达 · 市值$581B · 日成交$1112M",
+        "sector": "云与超级平台",
+        "theme": "端侧AI硬件与现金流基石",
         "weight": 0.05,
-        "score": 89.5,
-        "dvol21": 0.168208,
-        "stop_price": 632.414,
-        "discovered": true
+        "score": 87.8,
+        "dvol21": 0.142746,
+        "stop_price": 339.108,
+        "discovered": false,
+        "incumbent": true
       },
       {
-        "symbol": "V",
+        "symbol": "ISRG",
         "sleeve": "OFFENSE",
-        "sector": "全市场·工业",
-        "theme": "维萨 · 市值$772B · 日成交$1585M",
+        "sector": "航天与硬科技",
+        "theme": "医疗手术机器人绝对龙头",
         "weight": 0.05,
-        "score": 88.4,
-        "dvol21": 0.184361,
-        "stop_price": 406.986,
-        "discovered": true
+        "score": 77.8,
+        "dvol21": 0.28945,
+        "stop_price": 395.152,
+        "discovered": false,
+        "incumbent": true
       },
       {
-        "symbol": "ABBV",
+        "symbol": "TSLA",
         "sleeve": "OFFENSE",
-        "sector": "全市场·医疗保健",
-        "theme": "艾伯维 · 市值$516B · 日成交$1215M",
+        "sector": "航天与硬科技",
+        "theme": "智驾FSD、储能与人形机器人",
         "weight": 0.05,
-        "score": 88.4,
-        "dvol21": 0.159652,
-        "stop_price": 275.943,
-        "discovered": true
+        "score": 76.7,
+        "dvol21": 0.497096,
+        "stop_price": 349.718,
+        "discovered": false,
+        "incumbent": true
       },
       {
         "symbol": "COST",
@@ -130,7 +137,8 @@
         "score": 97.6,
         "dvol21": 0.09725,
         "stop_price": 1053.225,
-        "discovered": false
+        "discovered": false,
+        "incumbent": true
       },
       {
         "symbol": "WMT",
@@ -141,7 +149,8 @@
         "score": 93.0,
         "dvol21": 0.113818,
         "stop_price": 126.669,
-        "discovered": false
+        "discovered": false,
+        "incumbent": true
       }
     ]
   },
@@ -156,7 +165,7 @@
     "above_ma200": 33,
     "above_ma200_pct": 0.3929,
     "ma_bull_aligned": 11,
-    "matched_count": 17
+    "matched_count": 18
   },
   "sector_summary": [
     {
@@ -181,61 +190,61 @@
       "sector": "云与超级平台",
       "count": 5,
       "above_ma200": 3,
-      "avg_score": 51.0,
+      "avg_score": 50.3,
       "avg_mom60": -0.0569,
       "leader": "AAPL",
-      "leader_score": 86.8
+      "leader_score": 87.8
     },
     {
       "sector": "AI软件与数据",
       "count": 7,
       "above_ma200": 5,
-      "avg_score": 50.7,
+      "avg_score": 50.1,
       "avg_mom60": 0.0123,
       "leader": "PANW",
-      "leader_score": 75.1
+      "leader_score": 75.7
     },
     {
       "sector": "🌐 全市场新发现",
       "count": 40,
       "above_ma200": 16,
-      "avg_score": 38.1,
+      "avg_score": 37.6,
       "avg_mom60": -0.123,
-      "leader": "MA",
-      "leader_score": 89.5
+      "leader": "MRNA",
+      "leader_score": 93.1
     },
     {
       "sector": "航天与硬科技",
       "count": 5,
       "above_ma200": 2,
-      "avg_score": 36.6,
+      "avg_score": 37.5,
       "avg_mom60": -0.1538,
-      "leader": "TSLA",
-      "leader_score": 75.9
+      "leader": "ISRG",
+      "leader_score": 77.8
     },
     {
       "sector": "宽基基准ETF",
       "count": 2,
       "above_ma200": 0,
-      "avg_score": 27.9,
+      "avg_score": 25.2,
       "avg_mom60": -0.0635,
       "leader": "SPY",
-      "leader_score": 29.0
+      "leader_score": 26.2
     },
     {
       "sector": "AI芯片与半导体",
       "count": 8,
       "above_ma200": 0,
-      "avg_score": 17.0,
+      "avg_score": 15.8,
       "avg_mom60": -0.226,
       "leader": "AMD",
-      "leader_score": 23.2
+      "leader_score": 22.3
     },
     {
       "sector": "AI电力与核电",
       "count": 4,
       "above_ma200": 0,
-      "avg_score": 14.3,
+      "avg_score": 13.8,
       "avg_mom60": -0.249,
       "leader": "VST",
       "leader_score": 21.3
@@ -244,20 +253,40 @@
       "sector": "金融科技与加密",
       "count": 5,
       "above_ma200": 0,
-      "avg_score": 9.3,
+      "avg_score": 8.3,
       "avg_mom60": -0.3006,
       "leader": "NU",
-      "leader_score": 18.4
+      "leader_score": 18.0
     }
   ],
   "outside_rotation_top5": [
     {
+      "symbol": "MRNA",
+      "sector": "全市场·医疗保健",
+      "theme": "Moderna Inc · 市值$93B · 日成交$908M",
+      "composite_score": 93.1,
+      "mom60": 0.51608,
+      "dvol21": 0.508151,
+      "grade": "S",
+      "discovered": true
+    },
+    {
       "symbol": "MA",
       "sector": "全市场·工业",
       "theme": "万事达 · 市值$581B · 日成交$1112M",
-      "composite_score": 89.5,
+      "composite_score": 92.1,
       "mom60": 0.135696,
       "dvol21": 0.168208,
+      "grade": "S",
+      "discovered": true
+    },
+    {
+      "symbol": "INSM",
+      "sector": "全市场·医疗保健",
+      "theme": "Insmed Inc · 市值$37B · 日成交$1053M",
+      "composite_score": 91.5,
+      "mom60": 0.345969,
+      "dvol21": 0.226425,
       "grade": "S",
       "discovered": true
     },
@@ -265,7 +294,7 @@
       "symbol": "V",
       "sector": "全市场·工业",
       "theme": "维萨 · 市值$772B · 日成交$1585M",
-      "composite_score": 88.4,
+      "composite_score": 91.2,
       "mom60": 0.137546,
       "dvol21": 0.184361,
       "grade": "S",
@@ -275,48 +304,46 @@
       "symbol": "ABBV",
       "sector": "全市场·医疗保健",
       "theme": "艾伯维 · 市值$516B · 日成交$1215M",
-      "composite_score": 88.4,
+      "composite_score": 89.2,
       "mom60": 0.122659,
       "dvol21": 0.159652,
-      "grade": "S",
-      "discovered": true
-    },
-    {
-      "symbol": "HD",
-      "sector": "全市场·非日常生活消费品",
-      "theme": "家得宝 · 市值$361B · 日成交$1155M",
-      "composite_score": 88.3,
-      "mom60": 0.145392,
-      "dvol21": 0.147772,
-      "grade": "S",
-      "discovered": true
-    },
-    {
-      "symbol": "KO",
-      "sector": "全市场·日常消费品",
-      "theme": "可口可乐 · 市值$419B · 日成交$906M",
-      "composite_score": 88.0,
-      "mom60": 0.110478,
-      "dvol21": 0.095946,
       "grade": "S",
       "discovered": true
     }
   ],
   "discovered_top5": [
     {
+      "symbol": "MRNA",
+      "sector": "全市场·医疗保健",
+      "theme": "Moderna Inc · 市值$93B · 日成交$908M",
+      "composite_score": 93.1,
+      "mom60": 0.51608,
+      "dvol21": 0.508151,
+      "grade": "S"
+    },
+    {
       "symbol": "MA",
       "sector": "全市场·工业",
       "theme": "万事达 · 市值$581B · 日成交$1112M",
-      "composite_score": 89.5,
+      "composite_score": 92.1,
       "mom60": 0.135696,
       "dvol21": 0.168208,
+      "grade": "S"
+    },
+    {
+      "symbol": "INSM",
+      "sector": "全市场·医疗保健",
+      "theme": "Insmed Inc · 市值$37B · 日成交$1053M",
+      "composite_score": 91.5,
+      "mom60": 0.345969,
+      "dvol21": 0.226425,
       "grade": "S"
     },
     {
       "symbol": "V",
       "sector": "全市场·工业",
       "theme": "维萨 · 市值$772B · 日成交$1585M",
-      "composite_score": 88.4,
+      "composite_score": 91.2,
       "mom60": 0.137546,
       "dvol21": 0.184361,
       "grade": "S"
@@ -325,31 +352,65 @@
       "symbol": "ABBV",
       "sector": "全市场·医疗保健",
       "theme": "艾伯维 · 市值$516B · 日成交$1215M",
-      "composite_score": 88.4,
+      "composite_score": 89.2,
       "mom60": 0.122659,
       "dvol21": 0.159652,
-      "grade": "S"
-    },
-    {
-      "symbol": "HD",
-      "sector": "全市场·非日常生活消费品",
-      "theme": "家得宝 · 市值$361B · 日成交$1155M",
-      "composite_score": 88.3,
-      "mom60": 0.145392,
-      "dvol21": 0.147772,
-      "grade": "S"
-    },
-    {
-      "symbol": "KO",
-      "sector": "全市场·日常消费品",
-      "theme": "可口可乐 · 市值$419B · 日成交$906M",
-      "composite_score": 88.0,
-      "mom60": 0.110478,
-      "dvol21": 0.095946,
       "grade": "S"
     }
   ],
   "stocks": [
+    {
+      "symbol": "MRNA",
+      "role": "offense",
+      "sector": "全市场·医疗保健",
+      "theme": "Moderna Inc · 市值$93B · 日成交$908M",
+      "custom": false,
+      "discovered": true,
+      "date": "2026-11-27",
+      "rows": 980,
+      "close": 228.64,
+      "chg1d": 0.03532,
+      "sma20": 227.52,
+      "sma50": 213.784,
+      "sma200": 104.033,
+      "above_ma200": true,
+      "above_ma50": true,
+      "above_ma20": true,
+      "ma_bull_aligned": true,
+      "dist_ma200": 1.19777,
+      "mom20": 0.026396,
+      "mom60": 0.51608,
+      "mom120": 3.803361,
+      "dvol21": 0.508151,
+      "dvol_cap": 1.0,
+      "risk_adj_mom": 1.0156,
+      "high_52w": 280.8,
+      "drawdown_52w": -0.185755,
+      "vol_ratio": 0.825,
+      "rsi14": 53.8,
+      "atr14": 16.517,
+      "stop_price": 187.347,
+      "stop_dist_pct": 0.1806,
+      "rs60_vs_qqq": 0.597253,
+      "rs20_vs_qqq": 0.116353,
+      "in_rotation_pool": false,
+      "composite_score": 93.1,
+      "grade": "S",
+      "action_hint": "强势龙头·重点关注",
+      "tags": [
+        "🌐全市场发现",
+        "多头排列",
+        "强于大盘"
+      ],
+      "factor_breakdown": {
+        "risk_adj_mom": 38.1,
+        "rs60_vs_qqq": 25.0,
+        "mom20": 15.2,
+        "near_52w_high": 4.8,
+        "trend_vol": 10.0
+      },
+      "rank": 2
+    },
     {
       "symbol": "MA",
       "role": "offense",
@@ -385,7 +446,7 @@
       "rs60_vs_qqq": 0.216869,
       "rs20_vs_qqq": 0.139131,
       "in_rotation_pool": false,
-      "composite_score": 89.5,
+      "composite_score": 92.1,
       "grade": "S",
       "action_hint": "强势龙头·重点关注",
       "tags": [
@@ -396,13 +457,67 @@
         "极低波动"
       ],
       "factor_breakdown": {
-        "risk_adj_mom": 32.5,
+        "risk_adj_mom": 37.1,
         "rs60_vs_qqq": 22.3,
-        "mom20": 13.4,
-        "near_52w_high": 14.1,
-        "trend_vol": 7.2
+        "mom20": 16.1,
+        "near_52w_high": 6.6,
+        "trend_vol": 10.0
       },
       "rank": 4
+    },
+    {
+      "symbol": "INSM",
+      "role": "offense",
+      "sector": "全市场·医疗保健",
+      "theme": "Insmed Inc · 市值$37B · 日成交$1053M",
+      "custom": false,
+      "discovered": true,
+      "date": "2026-11-27",
+      "rows": 980,
+      "close": 170.44,
+      "chg1d": 0.000763,
+      "sma20": 128.269,
+      "sma50": 114.458,
+      "sma200": 122.876,
+      "above_ma200": true,
+      "above_ma50": true,
+      "above_ma20": true,
+      "ma_bull_aligned": false,
+      "dist_ma200": 0.387094,
+      "mom20": 0.527377,
+      "mom60": 0.345969,
+      "mom120": 0.809918,
+      "dvol21": 0.226425,
+      "dvol_cap": 1.0,
+      "risk_adj_mom": 1.528,
+      "high_52w": 212.75,
+      "drawdown_52w": -0.198872,
+      "vol_ratio": 2.733,
+      "rsi14": 82.97,
+      "atr14": 7.52,
+      "stop_price": 151.639,
+      "stop_dist_pct": 0.1103,
+      "rs60_vs_qqq": 0.427142,
+      "rs20_vs_qqq": 0.617334,
+      "in_rotation_pool": false,
+      "composite_score": 91.5,
+      "grade": "S",
+      "action_hint": "强势龙头·重点关注",
+      "tags": [
+        "🌐全市场发现",
+        "强于大盘",
+        "放量",
+        "极低波动",
+        "RSI偏高"
+      ],
+      "factor_breakdown": {
+        "risk_adj_mom": 39.5,
+        "rs60_vs_qqq": 24.7,
+        "mom20": 17.8,
+        "near_52w_high": 4.5,
+        "trend_vol": 5.0
+      },
+      "rank": 5
     },
     {
       "symbol": "V",
@@ -439,7 +554,7 @@
       "rs60_vs_qqq": 0.218719,
       "rs20_vs_qqq": 0.138278,
       "in_rotation_pool": false,
-      "composite_score": 88.4,
+      "composite_score": 91.2,
       "grade": "S",
       "action_hint": "强势龙头·重点关注",
       "tags": [
@@ -450,13 +565,13 @@
         "极低波动"
       ],
       "factor_breakdown": {
-        "risk_adj_mom": 31.7,
+        "risk_adj_mom": 36.2,
         "rs60_vs_qqq": 22.6,
-        "mom20": 13.2,
-        "near_52w_high": 13.9,
-        "trend_vol": 7.0
+        "mom20": 15.9,
+        "near_52w_high": 6.5,
+        "trend_vol": 10.0
       },
-      "rank": 5
+      "rank": 6
     },
     {
       "symbol": "ABBV",
@@ -493,7 +608,7 @@
       "rs60_vs_qqq": 0.203832,
       "rs20_vs_qqq": 0.093705,
       "in_rotation_pool": false,
-      "composite_score": 88.4,
+      "composite_score": 89.2,
       "grade": "S",
       "action_hint": "强势龙头·重点关注",
       "tags": [
@@ -504,65 +619,13 @@
         "极低波动"
       ],
       "factor_breakdown": {
-        "risk_adj_mom": 32.1,
+        "risk_adj_mom": 36.7,
         "rs60_vs_qqq": 22.0,
-        "mom20": 11.8,
-        "near_52w_high": 13.6,
-        "trend_vol": 9.0
+        "mom20": 14.1,
+        "near_52w_high": 6.3,
+        "trend_vol": 10.0
       },
-      "rank": 6
-    },
-    {
-      "symbol": "HD",
-      "role": "offense",
-      "sector": "全市场·非日常生活消费品",
-      "theme": "家得宝 · 市值$361B · 日成交$1155M",
-      "custom": false,
-      "discovered": true,
-      "date": "2026-11-27",
-      "rows": 980,
-      "close": 362.15,
-      "chg1d": 0.002464,
-      "sma20": 346.429,
-      "sma50": 318.996,
-      "sma200": 328.309,
-      "above_ma200": true,
-      "above_ma50": true,
-      "above_ma20": true,
-      "ma_bull_aligned": false,
-      "dist_ma200": 0.103075,
-      "mom20": 0.100827,
-      "mom60": 0.145392,
-      "mom120": 0.178183,
-      "dvol21": 0.147772,
-      "dvol_cap": 1.0,
-      "risk_adj_mom": 0.9693,
-      "high_52w": 390.64,
-      "drawdown_52w": -0.072932,
-      "vol_ratio": 1.086,
-      "rsi14": 68.92,
-      "atr14": 8.92,
-      "stop_price": 339.85,
-      "stop_dist_pct": 0.0616,
-      "rs60_vs_qqq": 0.226565,
-      "rs20_vs_qqq": 0.190784,
-      "in_rotation_pool": false,
-      "composite_score": 88.3,
-      "grade": "S",
-      "action_hint": "强势龙头·重点关注",
-      "tags": [
-        "🌐全市场发现",
-        "强于大盘",
-        "极低波动"
-      ],
-      "factor_breakdown": {
-        "risk_adj_mom": 32.9,
-        "rs60_vs_qqq": 22.9,
-        "mom20": 14.5,
-        "near_52w_high": 12.3,
-        "trend_vol": 5.7
-      },
-      "rank": 7
+      "rank": 8
     },
     {
       "symbol": "KO",
@@ -599,7 +662,7 @@
       "rs60_vs_qqq": 0.191651,
       "rs20_vs_qqq": 0.1393,
       "in_rotation_pool": false,
-      "composite_score": 88.0,
+      "composite_score": 89.0,
       "grade": "S",
       "action_hint": "强势龙头·重点关注",
       "tags": [
@@ -610,65 +673,65 @@
         "极低波动"
       ],
       "factor_breakdown": {
-        "risk_adj_mom": 31.2,
+        "risk_adj_mom": 35.7,
         "rs60_vs_qqq": 20.5,
-        "mom20": 13.6,
-        "near_52w_high": 13.8,
-        "trend_vol": 8.9
+        "mom20": 16.3,
+        "near_52w_high": 6.4,
+        "trend_vol": 10.0
       },
-      "rank": 8
+      "rank": 9
     },
     {
-      "symbol": "MRNA",
+      "symbol": "HD",
       "role": "offense",
-      "sector": "全市场·医疗保健",
-      "theme": "Moderna Inc · 市值$93B · 日成交$908M",
+      "sector": "全市场·非日常生活消费品",
+      "theme": "家得宝 · 市值$361B · 日成交$1155M",
       "custom": false,
       "discovered": true,
       "date": "2026-11-27",
       "rows": 980,
-      "close": 228.64,
-      "chg1d": 0.03532,
-      "sma20": 227.52,
-      "sma50": 213.784,
-      "sma200": 104.033,
+      "close": 362.15,
+      "chg1d": 0.002464,
+      "sma20": 346.429,
+      "sma50": 318.996,
+      "sma200": 328.309,
       "above_ma200": true,
       "above_ma50": true,
       "above_ma20": true,
-      "ma_bull_aligned": true,
-      "dist_ma200": 1.19777,
-      "mom20": 0.026396,
-      "mom60": 0.51608,
-      "mom120": 3.803361,
-      "dvol21": 0.508151,
+      "ma_bull_aligned": false,
+      "dist_ma200": 0.103075,
+      "mom20": 0.100827,
+      "mom60": 0.145392,
+      "mom120": 0.178183,
+      "dvol21": 0.147772,
       "dvol_cap": 1.0,
-      "risk_adj_mom": 1.0156,
-      "high_52w": 280.8,
-      "drawdown_52w": -0.185755,
-      "vol_ratio": 0.825,
-      "rsi14": 53.8,
-      "atr14": 16.517,
-      "stop_price": 187.347,
-      "stop_dist_pct": 0.1806,
-      "rs60_vs_qqq": 0.597253,
-      "rs20_vs_qqq": 0.116353,
+      "risk_adj_mom": 0.9693,
+      "high_52w": 390.64,
+      "drawdown_52w": -0.072932,
+      "vol_ratio": 1.086,
+      "rsi14": 68.92,
+      "atr14": 8.92,
+      "stop_price": 339.85,
+      "stop_dist_pct": 0.0616,
+      "rs60_vs_qqq": 0.226565,
+      "rs20_vs_qqq": 0.190784,
       "in_rotation_pool": false,
-      "composite_score": 87.7,
+      "composite_score": 88.6,
       "grade": "S",
       "action_hint": "强势龙头·重点关注",
       "tags": [
         "🌐全市场发现",
-        "多头排列",
-        "强于大盘"
+        "强于大盘",
+        "极低波动"
       ],
       "factor_breakdown": {
-        "risk_adj_mom": 33.3,
-        "rs60_vs_qqq": 25.0,
-        "mom20": 12.7,
-        "near_52w_high": 10.4,
-        "trend_vol": 6.3
+        "risk_adj_mom": 37.6,
+        "rs60_vs_qqq": 22.9,
+        "mom20": 17.4,
+        "near_52w_high": 5.8,
+        "trend_vol": 5.0
       },
-      "rank": 9
+      "rank": 10
     },
     {
       "symbol": "AAPL",
@@ -678,7 +741,7 @@
       "custom": false,
       "discovered": false,
       "date": "2026-11-27",
-      "rows": 980,
+      "rows": 1736,
       "close": 358.54,
       "chg1d": 0.008324,
       "sma20": 349.031,
@@ -705,7 +768,7 @@
       "rs60_vs_qqq": 0.185426,
       "rs20_vs_qqq": 0.118353,
       "in_rotation_pool": false,
-      "composite_score": 86.8,
+      "composite_score": 87.8,
       "grade": "S",
       "action_hint": "强势龙头·重点关注",
       "tags": [
@@ -715,113 +778,13 @@
         "极低波动"
       ],
       "factor_breakdown": {
-        "risk_adj_mom": 30.8,
+        "risk_adj_mom": 35.2,
         "rs60_vs_qqq": 20.2,
-        "mom20": 12.9,
-        "near_52w_high": 14.8,
-        "trend_vol": 8.0
+        "mom20": 15.4,
+        "near_52w_high": 6.9,
+        "trend_vol": 10.0
       },
       "rank": 11
-    },
-    {
-      "symbol": "TSLA",
-      "role": "offense",
-      "sector": "航天与硬科技",
-      "theme": "智驾FSD、储能与人形机器人",
-      "custom": false,
-      "discovered": false,
-      "date": "2026-11-27",
-      "rows": 980,
-      "close": 400.0,
-      "chg1d": 0.052244,
-      "sma20": 381.982,
-      "sma50": 377.845,
-      "sma200": 381.005,
-      "above_ma200": true,
-      "above_ma50": true,
-      "above_ma20": true,
-      "ma_bull_aligned": false,
-      "dist_ma200": 0.049856,
-      "mom20": -0.008182,
-      "mom60": 0.120417,
-      "mom120": -0.021885,
-      "dvol21": 0.497096,
-      "dvol_cap": 1.0,
-      "risk_adj_mom": 0.2422,
-      "high_52w": 498.83,
-      "drawdown_52w": -0.198124,
-      "vol_ratio": 1.027,
-      "rsi14": 56.37,
-      "atr14": 20.113,
-      "stop_price": 349.718,
-      "stop_dist_pct": 0.1257,
-      "rs60_vs_qqq": 0.20159,
-      "rs20_vs_qqq": 0.081775,
-      "in_rotation_pool": false,
-      "composite_score": 75.9,
-      "grade": "A",
-      "action_hint": "趋势优良·备选",
-      "tags": [
-        "强于大盘"
-      ],
-      "factor_breakdown": {
-        "risk_adj_mom": 27.9,
-        "rs60_vs_qqq": 21.7,
-        "mom20": 11.2,
-        "near_52w_high": 9.8,
-        "trend_vol": 5.2
-      },
-      "rank": 16
-    },
-    {
-      "symbol": "PANW",
-      "role": "offense",
-      "sector": "AI软件与数据",
-      "theme": "企业级网络安全平台",
-      "custom": false,
-      "discovered": false,
-      "date": "2026-11-27",
-      "rows": 980,
-      "close": 366.76,
-      "chg1d": 0.02982,
-      "sma20": 339.031,
-      "sma50": 366.013,
-      "sma200": 285.25,
-      "above_ma200": true,
-      "above_ma50": true,
-      "above_ma20": true,
-      "ma_bull_aligned": false,
-      "dist_ma200": 0.285749,
-      "mom20": -0.036288,
-      "mom60": 0.116537,
-      "mom120": 0.377089,
-      "dvol21": 0.46918,
-      "dvol_cap": 1.0,
-      "risk_adj_mom": 0.2484,
-      "high_52w": 432.325,
-      "drawdown_52w": -0.151657,
-      "vol_ratio": 1.007,
-      "rsi14": 55.98,
-      "atr14": 20.513,
-      "stop_price": 315.477,
-      "stop_dist_pct": 0.1398,
-      "rs60_vs_qqq": 0.19771,
-      "rs20_vs_qqq": 0.053669,
-      "in_rotation_pool": false,
-      "composite_score": 75.1,
-      "grade": "A",
-      "action_hint": "趋势优良·备选",
-      "tags": [
-        "强于大盘"
-      ],
-      "factor_breakdown": {
-        "risk_adj_mom": 28.3,
-        "rs60_vs_qqq": 21.4,
-        "mom20": 10.0,
-        "near_52w_high": 10.5,
-        "trend_vol": 4.8
-      },
-      "rank": 17
     },
     {
       "symbol": "ISRG",
@@ -831,7 +794,7 @@
       "custom": false,
       "discovered": false,
       "date": "2026-11-27",
-      "rows": 980,
+      "rows": 1736,
       "close": 430.18,
       "chg1d": 0.007023,
       "sma20": 438.011,
@@ -858,7 +821,7 @@
       "rs60_vs_qqq": 0.237944,
       "rs20_vs_qqq": 0.048554,
       "in_rotation_pool": false,
-      "composite_score": 74.7,
+      "composite_score": 77.8,
       "grade": "A",
       "action_hint": "趋势优良·备选",
       "tags": [
@@ -866,11 +829,111 @@
         "极低波动"
       ],
       "factor_breakdown": {
-        "risk_adj_mom": 30.0,
+        "risk_adj_mom": 34.3,
         "rs60_vs_qqq": 23.2,
-        "mom20": 9.6,
-        "near_52w_high": 8.0,
-        "trend_vol": 3.8
+        "mom20": 11.6,
+        "near_52w_high": 3.8,
+        "trend_vol": 5.0
+      },
+      "rank": 16
+    },
+    {
+      "symbol": "TSLA",
+      "role": "offense",
+      "sector": "航天与硬科技",
+      "theme": "智驾FSD、储能与人形机器人",
+      "custom": false,
+      "discovered": false,
+      "date": "2026-11-27",
+      "rows": 1736,
+      "close": 400.0,
+      "chg1d": 0.052244,
+      "sma20": 381.982,
+      "sma50": 377.845,
+      "sma200": 381.005,
+      "above_ma200": true,
+      "above_ma50": true,
+      "above_ma20": true,
+      "ma_bull_aligned": false,
+      "dist_ma200": 0.049856,
+      "mom20": -0.008182,
+      "mom60": 0.120417,
+      "mom120": -0.021885,
+      "dvol21": 0.497096,
+      "dvol_cap": 1.0,
+      "risk_adj_mom": 0.2422,
+      "high_52w": 498.83,
+      "drawdown_52w": -0.198124,
+      "vol_ratio": 1.027,
+      "rsi14": 56.37,
+      "atr14": 20.113,
+      "stop_price": 349.718,
+      "stop_dist_pct": 0.1257,
+      "rs60_vs_qqq": 0.20159,
+      "rs20_vs_qqq": 0.081775,
+      "in_rotation_pool": false,
+      "composite_score": 76.7,
+      "grade": "A",
+      "action_hint": "趋势优良·备选",
+      "tags": [
+        "强于大盘"
+      ],
+      "factor_breakdown": {
+        "risk_adj_mom": 31.9,
+        "rs60_vs_qqq": 21.7,
+        "mom20": 13.5,
+        "near_52w_high": 4.6,
+        "trend_vol": 5.0
+      },
+      "rank": 17
+    },
+    {
+      "symbol": "PANW",
+      "role": "offense",
+      "sector": "AI软件与数据",
+      "theme": "企业级网络安全平台",
+      "custom": false,
+      "discovered": false,
+      "date": "2026-11-27",
+      "rows": 1736,
+      "close": 366.76,
+      "chg1d": 0.02982,
+      "sma20": 339.031,
+      "sma50": 366.013,
+      "sma200": 285.25,
+      "above_ma200": true,
+      "above_ma50": true,
+      "above_ma20": true,
+      "ma_bull_aligned": false,
+      "dist_ma200": 0.285749,
+      "mom20": -0.036288,
+      "mom60": 0.116537,
+      "mom120": 0.377089,
+      "dvol21": 0.46918,
+      "dvol_cap": 1.0,
+      "risk_adj_mom": 0.2484,
+      "high_52w": 432.325,
+      "drawdown_52w": -0.151657,
+      "vol_ratio": 1.007,
+      "rsi14": 55.98,
+      "atr14": 20.513,
+      "stop_price": 315.477,
+      "stop_dist_pct": 0.1398,
+      "rs60_vs_qqq": 0.19771,
+      "rs20_vs_qqq": 0.053669,
+      "in_rotation_pool": false,
+      "composite_score": 75.7,
+      "grade": "A",
+      "action_hint": "趋势优良·备选",
+      "tags": [
+        "强于大盘"
+      ],
+      "factor_breakdown": {
+        "risk_adj_mom": 32.4,
+        "rs60_vs_qqq": 21.4,
+        "mom20": 12.0,
+        "near_52w_high": 4.9,
+        "trend_vol": 5.0
       },
       "rank": 18
     },
@@ -909,7 +972,7 @@
       "rs60_vs_qqq": 0.194165,
       "rs20_vs_qqq": 0.041799,
       "in_rotation_pool": false,
-      "composite_score": 73.7,
+      "composite_score": 74.3,
       "grade": "A",
       "action_hint": "趋势优良·备选",
       "tags": [
@@ -917,11 +980,11 @@
         "强于大盘"
       ],
       "factor_breakdown": {
-        "risk_adj_mom": 28.8,
+        "risk_adj_mom": 32.9,
         "rs60_vs_qqq": 21.1,
-        "mom20": 9.5,
-        "near_52w_high": 8.6,
-        "trend_vol": 5.8
+        "mom20": 11.4,
+        "near_52w_high": 4.0,
+        "trend_vol": 5.0
       },
       "rank": 19
     },
@@ -933,7 +996,7 @@
       "custom": false,
       "discovered": false,
       "date": "2026-11-27",
-      "rows": 980,
+      "rows": 1736,
       "close": 628.96,
       "chg1d": 0.031268,
       "sma20": 615.49,
@@ -960,71 +1023,20 @@
       "rs60_vs_qqq": 0.143022,
       "rs20_vs_qqq": 0.097066,
       "in_rotation_pool": false,
-      "composite_score": 70.0,
+      "composite_score": 69.2,
       "grade": "A",
       "action_hint": "趋势优良·备选",
       "tags": [
         "强于大盘"
       ],
       "factor_breakdown": {
-        "risk_adj_mom": 27.1,
+        "risk_adj_mom": 31.0,
         "rs60_vs_qqq": 19.0,
-        "mom20": 12.1,
-        "near_52w_high": 10.0,
-        "trend_vol": 1.8
+        "mom20": 14.6,
+        "near_52w_high": 4.7,
+        "trend_vol": 0.0
       },
-      "rank": 20
-    },
-    {
-      "symbol": "TXN",
-      "role": "offense",
-      "sector": "全市场·信息技术",
-      "theme": "德州仪器 · 市值$258B · 日成交$1972M",
-      "custom": false,
-      "discovered": true,
-      "date": "2026-11-27",
-      "rows": 980,
-      "close": 281.85,
-      "chg1d": 0.043155,
-      "sma20": 291.908,
-      "sma50": 286.59,
-      "sma200": 264.85,
-      "above_ma200": true,
-      "above_ma50": false,
-      "above_ma20": false,
-      "ma_bull_aligned": false,
-      "dist_ma200": 0.064186,
-      "mom20": -0.094952,
-      "mom60": 0.1128,
-      "mom120": -0.021218,
-      "dvol21": 0.635226,
-      "dvol_cap": 0.8658,
-      "risk_adj_mom": 0.1776,
-      "high_52w": 331.09,
-      "drawdown_52w": -0.148721,
-      "vol_ratio": 1.249,
-      "rsi14": 48.13,
-      "atr14": 18.899,
-      "stop_price": 234.603,
-      "stop_dist_pct": 0.1676,
-      "rs60_vs_qqq": 0.193973,
-      "rs20_vs_qqq": -0.004995,
-      "in_rotation_pool": false,
-      "composite_score": 69.5,
-      "grade": "A",
-      "action_hint": "趋势优良·备选",
-      "tags": [
-        "🌐全市场发现",
-        "强于大盘"
-      ],
-      "factor_breakdown": {
-        "risk_adj_mom": 26.7,
-        "rs60_vs_qqq": 20.8,
-        "mom20": 7.7,
-        "near_52w_high": 10.7,
-        "trend_vol": 3.6
-      },
-      "rank": 22
+      "rank": 21
     },
     {
       "symbol": "QCOM",
@@ -1061,7 +1073,7 @@
       "rs60_vs_qqq": 0.141691,
       "rs20_vs_qqq": 0.056841,
       "in_rotation_pool": false,
-      "composite_score": 67.2,
+      "composite_score": 68.8,
       "grade": "A",
       "action_hint": "趋势优良·备选",
       "tags": [
@@ -1069,64 +1081,64 @@
         "强于大盘"
       ],
       "factor_breakdown": {
-        "risk_adj_mom": 25.4,
+        "risk_adj_mom": 29.0,
         "rs60_vs_qqq": 18.8,
-        "mom20": 10.4,
-        "near_52w_high": 7.7,
+        "mom20": 12.4,
+        "near_52w_high": 3.6,
         "trend_vol": 5.0
       },
-      "rank": 23
+      "rank": 22
     },
     {
-      "symbol": "CRWD",
+      "symbol": "TXN",
       "role": "offense",
-      "sector": "AI软件与数据",
-      "theme": "AI云原生网络安全龙头",
+      "sector": "全市场·信息技术",
+      "theme": "德州仪器 · 市值$258B · 日成交$1972M",
       "custom": false,
-      "discovered": false,
+      "discovered": true,
       "date": "2026-11-27",
       "rows": 980,
-      "close": 217.2,
-      "chg1d": 0.037745,
-      "sma20": 227.548,
-      "sma50": 244.673,
-      "sma200": 178.383,
+      "close": 281.85,
+      "chg1d": 0.043155,
+      "sma20": 291.908,
+      "sma50": 286.59,
+      "sma200": 264.85,
       "above_ma200": true,
       "above_ma50": false,
       "above_ma20": false,
       "ma_bull_aligned": false,
-      "dist_ma200": 0.217608,
-      "mom20": -0.168294,
-      "mom60": 0.067742,
-      "mom120": 0.318777,
-      "dvol21": 0.552642,
-      "dvol_cap": 0.9952,
-      "risk_adj_mom": 0.1226,
-      "high_52w": 286.99,
-      "drawdown_52w": -0.243179,
-      "vol_ratio": 1.641,
-      "rsi14": 43.06,
-      "atr14": 15.11,
-      "stop_price": 179.426,
-      "stop_dist_pct": 0.1739,
-      "rs60_vs_qqq": 0.148915,
-      "rs20_vs_qqq": -0.078337,
+      "dist_ma200": 0.064186,
+      "mom20": -0.094952,
+      "mom60": 0.1128,
+      "mom120": -0.021218,
+      "dvol21": 0.635226,
+      "dvol_cap": 0.8658,
+      "risk_adj_mom": 0.1776,
+      "high_52w": 331.09,
+      "drawdown_52w": -0.148721,
+      "vol_ratio": 1.249,
+      "rsi14": 48.13,
+      "atr14": 18.899,
+      "stop_price": 234.603,
+      "stop_dist_pct": 0.1676,
+      "rs60_vs_qqq": 0.193973,
+      "rs20_vs_qqq": -0.004995,
       "in_rotation_pool": false,
-      "composite_score": 63.5,
-      "grade": "B",
-      "action_hint": "中性跟踪",
+      "composite_score": 65.5,
+      "grade": "A",
+      "action_hint": "趋势优良·备选",
       "tags": [
-        "强于大盘",
-        "放量"
+        "🌐全市场发现",
+        "强于大盘"
       ],
       "factor_breakdown": {
-        "risk_adj_mom": 25.8,
-        "rs60_vs_qqq": 19.3,
-        "mom20": 5.5,
-        "near_52w_high": 8.9,
-        "trend_vol": 3.9
+        "risk_adj_mom": 30.5,
+        "rs60_vs_qqq": 20.8,
+        "mom20": 9.2,
+        "near_52w_high": 5.0,
+        "trend_vol": 0.0
       },
-      "rank": 26
+      "rank": 23
     },
     {
       "symbol": "CVX",
@@ -1163,7 +1175,7 @@
       "rs60_vs_qqq": 0.09284,
       "rs20_vs_qqq": 0.01494,
       "in_rotation_pool": false,
-      "composite_score": 63.5,
+      "composite_score": 61.7,
       "grade": "B",
       "action_hint": "中性跟踪",
       "tags": [
@@ -1172,11 +1184,62 @@
         "极低波动"
       ],
       "factor_breakdown": {
-        "risk_adj_mom": 25.0,
+        "risk_adj_mom": 28.6,
         "rs60_vs_qqq": 17.6,
-        "mom20": 8.4,
-        "near_52w_high": 11.8,
-        "trend_vol": 0.8
+        "mom20": 10.1,
+        "near_52w_high": 5.5,
+        "trend_vol": 0.0
+      },
+      "rank": 26
+    },
+    {
+      "symbol": "CRWD",
+      "role": "offense",
+      "sector": "AI软件与数据",
+      "theme": "AI云原生网络安全龙头",
+      "custom": false,
+      "discovered": false,
+      "date": "2026-11-27",
+      "rows": 1736,
+      "close": 217.2,
+      "chg1d": 0.037745,
+      "sma20": 227.548,
+      "sma50": 244.673,
+      "sma200": 178.383,
+      "above_ma200": true,
+      "above_ma50": false,
+      "above_ma20": false,
+      "ma_bull_aligned": false,
+      "dist_ma200": 0.217608,
+      "mom20": -0.168294,
+      "mom60": 0.067742,
+      "mom120": 0.318777,
+      "dvol21": 0.552642,
+      "dvol_cap": 0.9952,
+      "risk_adj_mom": 0.1226,
+      "high_52w": 286.99,
+      "drawdown_52w": -0.243179,
+      "vol_ratio": 1.641,
+      "rsi14": 43.06,
+      "atr14": 15.11,
+      "stop_price": 179.426,
+      "stop_dist_pct": 0.1739,
+      "rs60_vs_qqq": 0.148915,
+      "rs20_vs_qqq": -0.078337,
+      "in_rotation_pool": false,
+      "composite_score": 59.7,
+      "grade": "B",
+      "action_hint": "中性跟踪",
+      "tags": [
+        "强于大盘",
+        "放量"
+      ],
+      "factor_breakdown": {
+        "risk_adj_mom": 29.5,
+        "rs60_vs_qqq": 19.3,
+        "mom20": 6.6,
+        "near_52w_high": 4.2,
+        "trend_vol": 0.0
       },
       "rank": 27
     },
@@ -1215,18 +1278,18 @@
       "rs60_vs_qqq": 0.097165,
       "rs20_vs_qqq": -0.033503,
       "in_rotation_pool": false,
-      "composite_score": 60.6,
+      "composite_score": 58.6,
       "grade": "B",
       "action_hint": "中性跟踪",
       "tags": [
         "强于大盘"
       ],
       "factor_breakdown": {
-        "risk_adj_mom": 24.2,
+        "risk_adj_mom": 27.6,
         "rs60_vs_qqq": 17.9,
-        "mom20": 7.0,
-        "near_52w_high": 10.2,
-        "trend_vol": 1.4
+        "mom20": 8.4,
+        "near_52w_high": 4.8,
+        "trend_vol": 0.0
       },
       "rank": 29
     }

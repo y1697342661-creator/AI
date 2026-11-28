@@ -466,11 +466,11 @@ function openDetail(sym) {
     ['逼近52周新高(10)', fb.near_52w_high || 0, 10],
     ['均线多头健康(10)', fb.trend_vol || 0, 10],
   ] : [
-    ['风险调整动量(35)', fb.risk_adj_mom || 0, 35],
+    ['风险调整动量(40)', fb.risk_adj_mom || 0, 40],
     ['跑赢QQQ超额(25)', fb.rs60_vs_qqq || 0, 25],
-    ['20日短线加速(15)', fb.mom20 || 0, 15],
-    ['逼近52周新高(15)', fb.near_52w_high || 0, 15],
-    ['多头排列与量能(10)', fb.trend_vol || 0, 10],
+    ['20日短线加速(18)', fb.mom20 || 0, 18],
+    ['均线多头排列(10)', fb.trend_vol || 0, 10],
+    ['逼近52周新高(7)', fb.near_52w_high || 0, 7],
   ];
   document.getElementById('factorBars').innerHTML = items.map(([name, val, maxv]) => `
     <div class="factor-row">

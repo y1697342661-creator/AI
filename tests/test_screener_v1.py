@@ -101,6 +101,114 @@ class TestUsStockScreenerV2(unittest.TestCase):
         self.assertEqual(f_t["dvol21"], f_t2["dvol21"])
         self.assertEqual(f_t["sma200"], f_t2["sma200"])
 
+    def test_incumbent_buffer_prevents_small_score_churn(self) -> None:
+        cfg = load_screener_config()
+        regime = {
+            "regime": "BULL_OFFENSE",
+            "label": "牛市进攻",
+            "offense_budget": 0.80,
+            "defense_budget": 0.20,
+            "cash_floor": 0.0,
+        }
+        def _mk(sym: str, score: float, above200: bool = True, sec: str = "S1") -> dict:
+            return {
+                "symbol": sym, "role": "offense", "sector": sec, "theme": sym,
+                "above_ma200": above200, "mom60": 0.15, "rs60_vs_qqq": 0.10,
+                "composite_score": score, "dvol21": 0.25, "dvol_cap": 1.0,
+                "stop_price": 90.0, "discovered": False,
+            }
+
+        # ABBV is held at 88.4; challenger NEW1 at 88.5 (+0.1) MUST NOT kick ABBV out
+        scored = [
+            _mk("AAA", 95.0, sec="S1"),
+            _mk("BBB", 92.0, sec="S2"),
+            _mk("NEW1", 88.5, sec="S3"),
+            _mk("ABBV", 88.4, sec="S4"),
+        ]
+        plan = build_offense_defense_allocation(
+            scored, regime, cfg["allocation"], "2026-11-28", cfg["version"],
+            prev_offense={"AAA", "BBB", "ABBV"}, prev_defense=set(),
+        )
+        self.assertIn("ABBV", plan["selected_symbols"])
+        self.assertNotIn("NEW1", plan["selected_symbols"])
+
+        # If challenger NEW2 beats ABBV by > 5.0 pts (94.0 vs 88.4), ABBV gets replaced
+        scored2 = [
+            _mk("AAA", 95.0, sec="S1"),
+            _mk("BBB", 92.0, sec="S2"),
+            _mk("NEW2", 94.0, sec="S3"),
+            _mk("ABBV", 88.4, sec="S4"),
+        ]
+        plan2 = build_offense_defense_allocation(
+            scored2, regime, cfg["allocation"], "2026-11-28", cfg["version"],
+            prev_offense={"AAA", "BBB", "ABBV"}, prev_defense=set(),
+        )
+        self.assertIn("NEW2", plan2["selected_symbols"])
+        self.assertNotIn("ABBV", plan2["selected_symbols"])
+
+        # If ABBV breaks below MA200, protection is immediately revoked
+        scored3 = [
+            _mk("AAA", 95.0, sec="S1"),
+            _mk("BBB", 92.0, sec="S2"),
+            _mk("NEW1", 88.5, sec="S3"),
+            _mk("ABBV", 88.4, above200=False, sec="S4"),
+        ]
+        plan3 = build_offense_defense_allocation(
+            scored3, regime, cfg["allocation"], "2026-11-28", cfg["version"],
+            prev_offense={"AAA", "BBB", "ABBV"}, prev_defense=set(),
+        )
+        self.assertNotIn("ABBV", plan3["selected_symbols"])
+        self.assertIn("NEW1", plan3["selected_symbols"])
+
+    def test_biweekly_hold_and_daily_emergency_guard(self) -> None:
+        cfg = load_screener_config()
+        bull_reg = {"regime": "BULL_OFFENSE", "label": "牛市进攻", "offense_budget": 0.80, "defense_budget": 0.20, "cash_floor": 0.0}
+        bear_reg = {"regime": "BEAR_DEFENSE", "label": "熊市防守", "offense_budget": 0.15, "defense_budget": 0.65, "cash_floor": 0.20}
+
+        def _mk(sym: str, score: float, above200: bool = True, role: str = "offense", sec: str = "S1") -> dict:
+            return {
+                "symbol": sym, "role": role, "sector": sec, "theme": sym,
+                "above_ma200": above200, "mom60": 0.15, "rs60_vs_qqq": 0.10,
+                "composite_score": score, "dvol21": 0.25, "dvol_cap": 1.0,
+                "stop_price": 90.0, "discovered": False,
+            }
+
+        prev_alloc = {
+            "signal_date": "2026-11-20",
+            "last_rebalance_date": "2026-11-20",
+            "regime": "BULL_OFFENSE",
+            "positions": [
+                {"symbol": "AAA", "sleeve": "OFFENSE", "weight": 0.40, "score": 85.0},
+                {"symbol": "COST", "sleeve": "DEFENSE", "weight": 0.20, "score": 90.0},
+            ],
+        }
+
+        # 1) 5 days later (<14d), all healthy & same regime -> HOLD even if ZZZ has 99 pts
+        scored_hold = [_mk("AAA", 82.0, True), _mk("ZZZ", 99.0, True, sec="S2"), _mk("COST", 90.0, True, role="defense", sec="D1")]
+        p_hold = build_offense_defense_allocation(scored_hold, bull_reg, cfg["allocation"], "2026-11-25", cfg["version"], prev_allocation=prev_alloc)
+        self.assertEqual(p_hold["rebalance_action"], "HOLD")
+        self.assertEqual(p_hold["selected_symbols"], ["AAA", "COST"])
+        self.assertEqual(p_hold["last_rebalance_date"], "2026-11-20")
+
+        # 2) 5 days later, AAA breaks below MA200 -> EMERGENCY_MA200_STOP triggers immediately!
+        scored_brk = [_mk("AAA", 40.0, False), _mk("ZZZ", 99.0, True, sec="S2"), _mk("COST", 90.0, True, role="defense", sec="D1")]
+        p_brk = build_offense_defense_allocation(scored_brk, bull_reg, cfg["allocation"], "2026-11-25", cfg["version"], prev_allocation=prev_alloc)
+        self.assertEqual(p_brk["rebalance_action"], "REBALANCE")
+        self.assertIn("EMERGENCY_MA200_STOP", p_brk["rebalance_reason"])
+        self.assertNotIn("AAA", p_brk["selected_symbols"])
+
+        # 3) 5 days later, regime downgrades BULL -> BEAR -> EMERGENCY_REGIME_DOWNGRADE triggers!
+        p_reg = build_offense_defense_allocation(scored_hold, bear_reg, cfg["allocation"], "2026-11-25", cfg["version"], prev_allocation=prev_alloc)
+        self.assertEqual(p_reg["rebalance_action"], "REBALANCE")
+        self.assertIn("EMERGENCY_REGIME_DOWNGRADE", p_reg["rebalance_reason"])
+        self.assertGreaterEqual(p_reg["cash_weight"], 0.20 - 1e-4)
+
+        # 4) 15 days later (>=14d) -> normal BIWEEKLY_SCHEDULED rebalance!
+        p_due = build_offense_defense_allocation(scored_hold, bull_reg, cfg["allocation"], "2026-12-05", cfg["version"], prev_allocation=prev_alloc)
+        self.assertEqual(p_due["rebalance_action"], "REBALANCE")
+        self.assertIn("BIWEEKLY_SCHEDULED", p_due["rebalance_reason"])
+        self.assertIn("ZZZ", p_due["selected_symbols"])
+
 
 if __name__ == "__main__":
     unittest.main()

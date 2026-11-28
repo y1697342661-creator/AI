@@ -454,13 +454,13 @@ def _score_and_tag(records: list[dict[str, Any]], rules: dict[str, Any], benchma
                 + 10.0 * align_bonus
             )
         else:
+            # v2.1.0 ablation-verified weights: removed drag from vol_ratio & RSI penalty
             raw_score = (
-                35.0 * r_ram[i]
+                40.0 * r_ram[i]
                 + 25.0 * r_rs60[i]
-                + 15.0 * r_m20[i]
-                + 15.0 * r_52w[i]
-                + 6.0 * align_bonus
-                + 4.0 * r_vol[i]
+                + 18.0 * r_m20[i]
+                + 7.0 * r_52w[i]
+                + 10.0 * align_bonus
             )
 
         tags: list[str] = []
@@ -486,8 +486,8 @@ def _score_and_tag(records: list[dict[str, Any]], rules: dict[str, Any], benchma
 
         overheat = bool(r["rsi14"] is not None and r["rsi14"] > rsi_overheat)
         if overheat:
-            raw_score -= 8.0
-            tags.append("短期过热")
+            # v2.1.0: tag-only visual reminder; do NOT penalize score (backtest showed RSI penalty hurt strong trends)
+            tags.append("RSI偏高")
 
         if not r["above_ma200"]:
             final_score = min(45.0, raw_score * 0.48)
@@ -496,7 +496,7 @@ def _score_and_tag(records: list[dict[str, Any]], rules: dict[str, Any], benchma
 
         if not r["above_ma200"]:
             grade, action = "D", "年线下方·观望"
-        elif final_score >= 78.0 and not overheat:
+        elif final_score >= 78.0:
             grade, action = "S", "强势避险·首选" if r["role"] == "defense" else "强势龙头·重点关注"
         elif final_score >= 65.0:
             grade, action = "A", "稳健防御·备选" if r["role"] == "defense" else "趋势优良·备选"
@@ -510,11 +510,11 @@ def _score_and_tag(records: list[dict[str, Any]], rules: dict[str, Any], benchma
         r["action_hint"] = action
         r["tags"] = tags
         r["factor_breakdown"] = {
-            "risk_adj_mom": round(35.0 * r_ram[i], 1),
+            "risk_adj_mom": round((35.0 if r["role"] == "defense" else 40.0) * r_ram[i], 1),
             "rs60_vs_qqq": round((20.0 if r["role"] == "defense" else 25.0) * r_rs60[i], 1),
-            "mom20": round((25.0 * r_lowvol[i]) if r["role"] == "defense" else (15.0 * r_m20[i]), 1),
-            "near_52w_high": round((10.0 if r["role"] == "defense" else 15.0) * r_52w[i], 1),
-            "trend_vol": round((10.0 * align_bonus) if r["role"] == "defense" else (6.0 * align_bonus + 4.0 * r_vol[i]), 1),
+            "mom20": round((25.0 * r_lowvol[i]) if r["role"] == "defense" else (18.0 * r_m20[i]), 1),
+            "near_52w_high": round((10.0 if r["role"] == "defense" else 7.0) * r_52w[i], 1),
+            "trend_vol": round(10.0 * align_bonus, 1),
         }
 
     records.sort(key=lambda x: (x["above_ma200"], x["composite_score"]), reverse=True)
@@ -564,32 +564,168 @@ def evaluate_market_regime(records: list[dict[str, Any]], alloc_cfg: dict[str, A
     }
 
 
+_REGIME_SEVERITY = {"BULL_OFFENSE": 0, "NEUTRAL_BALANCE": 1, "BEAR_DEFENSE": 2}
+
+
+def _load_previous_allocation() -> dict[str, Any] | None:
+    """Load previous latest_allocation.json for bi-weekly cadence & incumbent hysteresis."""
+    if not SCREENER_ALLOCATION_FILE.exists():
+        return None
+    try:
+        data = json.loads(SCREENER_ALLOCATION_FILE.read_text(encoding="utf-8-sig"))
+        return data if isinstance(data, dict) else None
+    except Exception:
+        return None
+
+
+def _extract_prev_sets(prev_alloc: dict[str, Any] | None) -> tuple[set[str], set[str]]:
+    if not prev_alloc:
+        return set(), set()
+    off_set: set[str] = set()
+    def_set: set[str] = set()
+    for p in prev_alloc.get("positions", []):
+        sym = str(p.get("symbol") or "").upper().strip()
+        sleeve = str(p.get("sleeve") or "").upper()
+        if not sym:
+            continue
+        if sleeve == "DEFENSE":
+            def_set.add(sym)
+        else:
+            off_set.add(sym)
+    return off_set, def_set
+
+
 def build_offense_defense_allocation(
     scored: list[dict[str, Any]],
     regime: dict[str, Any],
     alloc_cfg: dict[str, Any],
     signal_date: str,
     version: str,
+    prev_offense: set[str] | None = None,
+    prev_defense: set[str] | None = None,
+    prev_allocation: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Build rotation-compatible Offense + Defense target_weights (strictly zero leverage)."""
+    """Build rotation-compatible Offense + Defense target_weights.
+
+    Discipline:
+    - Bi-weekly regular rebalance (`rebalance_cadence_days`, default 14 calendar days) with +5pt incumbent buffer.
+    - Daily emergency risk guard: even inside the hold window, immediately triggers rebalance if:
+      (1) Market regime downgrades (e.g. BULL -> NEUTRAL/BEAR, NEUTRAL -> BEAR), OR
+      (2) Any currently held position breaks below MA200.
+    - Strictly zero leverage (`total_invested_weight <= 1.0 - cash_floor`).
+    """
     off_slots = int(alloc_cfg.get("offense_slots", 3))
     def_slots = int(alloc_cfg.get("defense_slots", 2))
     max_per_sec = int(alloc_cfg.get("max_per_sector", 2))
     max_single = float(alloc_cfg.get("max_single_weight", 0.35))
+    buffer_pts = float(alloc_cfg.get("incumbent_buffer_pts", 5.0))
+    cadence_days = int(alloc_cfg.get("rebalance_cadence_days", 14))
+
+    if prev_offense is None and prev_defense is None and prev_allocation:
+        prev_off, prev_def = _extract_prev_sets(prev_allocation)
+    else:
+        prev_off = prev_offense if prev_offense is not None else set()
+        prev_def = prev_defense if prev_defense is not None else set()
+
+    # Check bi-weekly cadence & daily emergency guard when prev_allocation is provided
+    rebalance_action = "REBALANCE"
+    rebalance_reason = "INITIAL_ALLOCATION"
+    last_rebal_date = signal_date
+    next_rebal_in_days = cadence_days
+
+    if prev_allocation and prev_allocation.get("positions"):
+        prev_rebal_str = str(prev_allocation.get("last_rebalance_date") or prev_allocation.get("signal_date") or "")
+        days_elapsed = cadence_days
+        if prev_rebal_str and signal_date:
+            try:
+                d_cur = dt.date.fromisoformat(signal_date[:10])
+                d_prev = dt.date.fromisoformat(prev_rebal_str[:10])
+                days_elapsed = max(0, (d_cur - d_prev).days)
+            except ValueError:
+                days_elapsed = cadence_days
+
+        by_sym = {r["symbol"]: r for r in scored}
+        prev_reg = str(prev_allocation.get("regime") or "")
+        cur_reg = str(regime["regime"])
+        regime_downgraded = (
+            prev_reg in _REGIME_SEVERITY
+            and cur_reg in _REGIME_SEVERITY
+            and _REGIME_SEVERITY[cur_reg] > _REGIME_SEVERITY[prev_reg]
+        )
+        broken_holdings = [
+            str(p["symbol"]).upper()
+            for p in prev_allocation.get("positions", [])
+            if str(p["symbol"]).upper() in by_sym and not by_sym[str(p["symbol"]).upper()]["above_ma200"]
+        ]
+
+        if regime_downgraded:
+            rebalance_reason = f"EMERGENCY_REGIME_DOWNGRADE ({prev_reg} -> {cur_reg})"
+        elif broken_holdings:
+            rebalance_reason = f"EMERGENCY_MA200_STOP ({','.join(broken_holdings)})"
+        elif days_elapsed >= cadence_days:
+            rebalance_reason = f"BIWEEKLY_SCHEDULED (已持仓 {days_elapsed} 天 ≥ {cadence_days} 天)"
+        else:
+            # Inside bi-weekly hold window & all holdings healthy -> HOLD steady!
+            rem = max(1, cadence_days - days_elapsed)
+            held_positions = []
+            held_weights: dict[str, float] = {}
+            for p in prev_allocation.get("positions", []):
+                sym = str(p["symbol"]).upper()
+                w = round(float(p.get("weight", 0.0)), 4)
+                if w <= 0.0:
+                    continue
+                cur = by_sym.get(sym)
+                held_weights[sym] = w
+                held_positions.append({
+                    "symbol": sym,
+                    "sleeve": p.get("sleeve", "OFFENSE"),
+                    "sector": cur["sector"] if cur else p.get("sector", ""),
+                    "theme": cur["theme"] if cur else p.get("theme", ""),
+                    "weight": w,
+                    "score": cur["composite_score"] if cur else p.get("score", 0.0),
+                    "dvol21": cur["dvol21"] if cur else p.get("dvol21"),
+                    "stop_price": cur["stop_price"] if cur else p.get("stop_price"),
+                    "discovered": cur["discovered"] if cur else bool(p.get("discovered", False)),
+                    "incumbent": True,
+                })
+            tot_w = round(sum(held_weights.values()), 4)
+            off_w = round(sum(p["weight"] for p in held_positions if p["sleeve"] == "OFFENSE"), 4)
+            def_w = round(sum(p["weight"] for p in held_positions if p["sleeve"] == "DEFENSE"), 4)
+            return {
+                "version": version,
+                "signal_date": signal_date,
+                "computed_at": dt.datetime.now().isoformat(timespec="seconds"),
+                "last_rebalance_date": prev_rebal_str or signal_date,
+                "rebalance_action": "HOLD",
+                "rebalance_reason": f"HOLD_BIWEEKLY_WINDOW (持仓均健康，距下次常规换股 {rem} 天)",
+                "next_rebalance_in_days": rem,
+                "regime": regime["regime"],
+                "regime_label": regime["label"],
+                "selected_symbols": [p["symbol"] for p in held_positions],
+                "target_weights": held_weights,
+                "offense_weight": off_w,
+                "defense_weight": def_w,
+                "total_invested_weight": tot_w,
+                "cash_weight": round(max(0.0, 1.0 - tot_w), 4),
+                "positions": held_positions,
+            }
 
     off_budget = regime["offense_budget"]
     def_budget = regime["defense_budget"]
 
-    # 1. Pick top offense candidates (above MA200, positive Mom60, beat QQQ, not overheated, sector-diversified)
+    # 1. Pick top offense candidates (above MA200, positive Mom60, beat QQQ, sector-diversified)
+    # Healthy incumbents receive +buffer_pts on selection rank to prevent noisy 0.1-pt churn.
     off_cands = [
         r for r in scored
         if r["role"] == "offense"
         and r["above_ma200"]
         and (r["mom60"] is not None and r["mom60"] > 0.0)
         and (r["rs60_vs_qqq"] is not None and r["rs60_vs_qqq"] > 0.0)
-        and (r["rsi14"] is None or r["rsi14"] <= 82.0)
     ]
-    off_cands.sort(key=lambda x: x["composite_score"], reverse=True)
+    off_cands.sort(
+        key=lambda x: x["composite_score"] + (buffer_pts if x["symbol"] in prev_off else 0.0),
+        reverse=True,
+    )
 
     picked_off: list[dict[str, Any]] = []
     sec_counts: dict[str, int] = {}
@@ -602,12 +738,15 @@ def build_offense_defense_allocation(
         if len(picked_off) >= off_slots:
             break
 
-    # 2. Pick top defense candidates (above MA200, sorted by defense composite_score)
+    # 2. Pick top defense candidates (above MA200, with incumbent buffer)
     def_cands = [
         r for r in scored
         if r["role"] == "defense" and r["above_ma200"]
     ]
-    def_cands.sort(key=lambda x: x["composite_score"], reverse=True)
+    def_cands.sort(
+        key=lambda x: x["composite_score"] + (buffer_pts if x["symbol"] in prev_def else 0.0),
+        reverse=True,
+    )
     picked_def = def_cands[:def_slots]
 
     # 3. Assign DVol-capped weights within budgets
@@ -631,6 +770,7 @@ def build_offense_defense_allocation(
                     "dvol21": c["dvol21"],
                     "stop_price": c["stop_price"],
                     "discovered": c["discovered"],
+                    "incumbent": c["symbol"] in prev_off,
                 })
 
     if picked_def and def_budget > 0:
@@ -650,6 +790,7 @@ def build_offense_defense_allocation(
                     "dvol21": c["dvol21"],
                     "stop_price": c["stop_price"],
                     "discovered": False,
+                    "incumbent": c["symbol"] in prev_def,
                 })
 
     # Hard zero-leverage & cash floor invariant
@@ -671,6 +812,10 @@ def build_offense_defense_allocation(
         "version": version,
         "signal_date": signal_date,
         "computed_at": dt.datetime.now().isoformat(timespec="seconds"),
+        "last_rebalance_date": last_rebal_date,
+        "rebalance_action": rebalance_action,
+        "rebalance_reason": rebalance_reason,
+        "next_rebalance_in_days": next_rebal_in_days,
         "regime": regime["regime"],
         "regime_label": regime["label"],
         "selected_symbols": [p["symbol"] for p in positions],
@@ -691,7 +836,6 @@ def apply_preset_filter(records: list[dict[str, Any]], preset: str = "core_momen
             and r["above_ma200"]
             and (r["rs60_vs_qqq"] is not None and r["rs60_vs_qqq"] > 0.0)
             and (r["mom60"] is not None and r["mom60"] > 0.0)
-            and (r["rsi14"] is None or r["rsi14"] <= 82.0)
         ]
         out.sort(key=lambda x: x["composite_score"], reverse=True)
         return out
@@ -785,8 +929,14 @@ def run_screener(
     scored = _score_and_tag(records, rules, benchmark=benchmark)
     regime = evaluate_market_regime(scored, cfg["allocation"])
     signal_date = max((r["date"] for r in scored), default="")
+    prev_alloc = _load_previous_allocation()
     portfolio_plan = build_offense_defense_allocation(
-        scored, regime, cfg["allocation"], signal_date=signal_date, version=cfg["version"]
+        scored,
+        regime,
+        cfg["allocation"],
+        signal_date=signal_date,
+        version=cfg["version"],
+        prev_allocation=prev_alloc,
     )
 
     # Always persist latest rotation-compatible allocation snapshot
