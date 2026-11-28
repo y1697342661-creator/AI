@@ -1,2 +1,5 @@
 ﻿recorded_at,paper_only,version,symbol,side,prev_weight,target_weight,notional_usd,ok,ord_id,status
 2026-11-28T05:04:28,True,rotation-v1.0.0,PLTR,BUY,0.0,0.5,50000.0,True,492c4b78-ea1a-4710-8f1d-9cb9eb01df97,accepted
+2026-11-28T05:39:16,True,rotation-v2.0.0,LLY,BUY,0.0,0.3333,33330.0,True,3adf553b-f0cd-4705-95ce-63180820b9a9,accepted
+2026-11-28T05:39:16,True,rotation-v2.0.0,WMT,BUY,0.0,0.24,24000.0,True,ce0409df-f702-46cf-aa62-2b17ab206e3d,accepted
+2026-11-28T05:39:16,True,rotation-v2.0.0,KO,BUY,0.0,0.4,40000.0,True,53a4c820-46c0-4c2f-a98d-d3299696139c,accepted
