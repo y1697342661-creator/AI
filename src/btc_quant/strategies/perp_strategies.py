@@ -194,7 +194,8 @@ def generate_strategy_signals(
         )
         tgt = np.where(rvol > 1.05, np.clip(tgt, -0.5, 0.5), tgt)
 
-    stop_dist = (df["atr_pct"] * stop_atr).clip(0.035, 0.14)
+    max_stop_cap = float(p.get("max_stop_pct", 0.14))
+    stop_dist = (df["atr_pct"] * stop_atr).clip(0.025, max_stop_cap)
     trail_dist = (df["atr_pct"] * trail_atr).clip(0.045, 0.18)
     return pd.Series(tgt, index=df.index, name="target_leverage"), stop_dist, trail_dist
 
