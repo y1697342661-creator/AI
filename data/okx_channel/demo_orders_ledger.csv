@@ -1,6 +1,0 @@
-﻿recorded_at,simulated_only,strategy_version,inst_id,action,target_weight,prev_weight,order_sz,est_shares,ref_xmu_px,spread_bps,ok,ord_id,msg
-2026-11-26T23:02:47,True,v2.0.0,XMU-USDT,BUY,0.3852,0.0,28734.44,47.1365,609.6,1.64,False,,"{""msg"":""This API Key does not have trading permission for the Crypto"",""code"":""50123""}"
-2026-11-27T17:48:37,True,v2.0.0,XMU-USDT,BUY,0.3852,0.0,28736.74,44.8535,640.68,1.72,True,4.136272190004687e+18,Order placed
-2026-11-27T12:48:01,True,v2.0.0,XMU-USDT,BUY,0.3852,0.1389,18345.25,28.8629,635.6,1.73,True,4.1366333603477094e+18,Order placed
-2026-11-27T22:53:32,True,v2.0.0,XMU-USDT,BUY,0.3852,0.3191,4943.35,7.6717,644.36,2.18,True,4.137852453528695e+18,Order placed
-2026-11-28T04:26:26,True,v2.0.0,XMU-USDT,BUY,0.3852,0.1725,15920.64,24.6507,645.85,1.7,True,4138522643681669123,Order placed

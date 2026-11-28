@@ -1,32 +1,25 @@
-# MU Specialist Quant System 2.0
-# 美光（NASDAQ: MU）专项双向量化波段交易系统
+# 美股攻守兼备 · 全市场选股与 Alpaca 模拟盘自动交易系统
 
-针对 **Micron Technology（NASDAQ: MU）** 正股的模块化双向量化研究与前瞻性纸面交易系统。
+全美股两阶段漏斗选股 + 市场状态攻守动态配仓 + **Alpaca Paper Trading（纯模拟盘、零杠杆）** 云端全自动执行系统。
 
-## 核心纪律
-- 标的：NASDAQ: MU 正股（**严禁使用永续合约或以代币价格冒充正股**）
-- 杠杆：**严格禁用（最大总仓位 ≤ 100%）**
-- 实盘下单：**硬编码禁用自动下单**，仅输出模拟成交单与前瞻性纸面交易日志
-- 成交时序：**T 日收盘出信号 → T+1 开盘成交**；计入双边佣金+滑点（默认 15bp/边）、做空按日融券费（默认 1.5%/年）及跨除息日分红代付
-- 多空独立：做多与做空完全独立建模，下跌市允许空仓
+## 核心架构
+1. **选股与配仓大脑 (`src/mu_quant/screener/`)**：
+   - 根据 `SPY` / `QQQ` 200 日年线与市场宽度自动切换三档状态：
+     - **牛市进攻 (`BULL_OFFENSE`)**：进攻 80% + 防守 20% + 现金 0%
+     - **震荡平衡 (`NEUTRAL_BALANCE`)**：进攻 45% + 防守 45% + 现金 10%
+     - **熊市防守 (`BEAR_DEFENSE`)**：进攻 15% + 防守 65% + 现金 20%
+   - 结合核心攻守池与全美股高流动性漏斗（股价 ≥ $5、市值 ≥ $30B、日成交 ≥ $50M），按趋势、相对 QQQ 超额动量、下行波动率（DVol21）综合打分，输出目标仓位至 `data/screener/latest_allocation.json`。
+2. **模拟盘自动执行器 (`src/mu_quant/rotation/alpaca_paper.py`)**：
+   - 接口硬编码为 `https://paper-api.alpaca.markets`（仅模拟盘，代码层绝不接触实盘）。
+   - 严格零杠杆、先卖后买、单股权重硬上限 ≤ 40%，成交记录追加写入 `data/rotation/alpaca_paper_orders.csv`。
 
-## 快速启动
-1. **一键打开本地网页控制台**：双击 `启动控制台.bat`，或命令行运行：
-   ```powershell
-   cd E:\AI策略交易
-   python src\mu_quant\dashboard\server.py --port 8501
-   ```
-   浏览器打开 `http://127.0.0.1:8501` 即可查看行情、核心指标、市场环境、多空信号、止损价、净值对比曲线、绩效表与纸面交易面板。
-2. **运行自动化测试**：
-   ```powershell
-   cd E:\AI策略交易
-   python -m unittest discover -s tests -v
-   ```
+## 云端定时任务（GitHub Actions）
+- **周二～周六 北京时间 `06:30`**（`.github/workflows/us_screener_daily.yml`）：全美股扫描并更新 `data/screener/latest_allocation.json`。
+- **周一～周五 北京时间 `22:35`**（`.github/workflows/mu_daily_quant.yml`）：读取最新目标权重并在 Alpaca 模拟盘自动调仓。
 
-## 目录结构
-- `configs/strategy_versions/`：不可变策略参数版本快照（当前 `v2.0.0.json`）
-- `data/raw/`：NASDAQ: MU 正股及行业对照原始历史行情
-- `data/paper_trading/`：只追加（append-only）纸面信号与交易账本
-- `src/mu_quant/`：14 个核心功能模块（data / features / market_regime / long_strategy / short_strategy / portfolio / risk / backtest / execution_simulator / paper_trading / performance / dashboard / logs）
-- `research/`：阶段 2 与阶段 3 研究脚本及原始 JSON 结果
-- `tests/`：自动化单元测试、未来函数检查与订单时序测试
+## 本地快速启动
+- **打开本地选股看板**：双击 `打开美股选股系统.bat`，浏览器访问 `http://127.0.0.1:8501/screener`。
+- **运行自动化测试**：
+  ```powershell
+  $env:PYTHONPATH="src"; python -m unittest discover -s tests -p "test_*.py" -v
+  ```

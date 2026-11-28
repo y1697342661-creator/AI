@@ -32,7 +32,7 @@ _SRC = Path(__file__).resolve().parents[2]
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from mu_quant.config import CONFIGS_DIR, DATA_RAW, ROOT
+from mu_quant.config import CONFIGS_DIR, ROOT
 from mu_quant.logs.logger import get_logger
 
 log = get_logger("mu_quant.screener")
@@ -244,19 +244,6 @@ def remove_custom_symbol(symbol: str) -> dict[str, Any]:
 def load_or_refresh_stock(item: dict[str, Any], refresh: bool = False) -> pd.DataFrame:
     sym = item["symbol"].upper()
     cache_path = SCREENER_RAW_DIR / f"{sym}.csv"
-
-    if not cache_path.exists():
-        for fallback in (
-            DATA_RAW / f"{sym}.csv",
-            DATA_RAW / f"bench_{sym}.csv",
-        ):
-            if fallback.exists():
-                try:
-                    df0 = pd.read_csv(fallback, parse_dates=["Date"]).set_index("Date").sort_index()
-                    df0[["Open", "High", "Low", "Close", "Volume"]].to_csv(cache_path)
-                    break
-                except Exception:
-                    pass
 
     existing = (
         pd.read_csv(cache_path, parse_dates=["Date"]).set_index("Date").sort_index()
