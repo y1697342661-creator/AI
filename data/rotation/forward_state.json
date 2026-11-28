@@ -1,0 +1,25 @@
+{
+  "start_date": "2026-11-27",
+  "last_date": "2026-11-27",
+  "initial_capital": 100000.0,
+  "cash": 100000.0,
+  "shares": {
+    "PLTR": 0.0,
+    "QQQ": 0.0,
+    "AVGO": 0.0,
+    "RKLB": 0.0,
+    "MU": 0.0,
+    "HOOD": 0.0
+  },
+  "pending_weights": {
+    "PLTR": 0.5,
+    "QQQ": 0.0,
+    "AVGO": 0.0,
+    "RKLB": 0.0,
+    "MU": 0.0,
+    "HOOD": 0.0
+  },
+  "nav": 100000.0,
+  "peak_nav": 100000.0,
+  "days": 1
+}

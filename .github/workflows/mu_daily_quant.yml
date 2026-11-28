@@ -48,7 +48,12 @@ jobs:
           PYTHONPATH: src
         run: python src/mu_quant/paper_trading/daily_runner.py --force-refresh
 
-      - name: Run OKX Simulated Trading Sync (XMU-USDT Spot Only)
+      - name: Run 6-Asset Cross-Sector Rotation Data & Forward Scorecard
+        env:
+          PYTHONPATH: src
+        run: python src/mu_quant/rotation/runner.py
+
+      - name: Run OKX Simulated Trading Sync (6-Asset Top-2 Spot Rotation Only)
         env:
           PYTHONPATH: src
           MU_SECRET_JSON: ${{ secrets.MU }}
@@ -84,21 +89,21 @@ jobs:
           fi
 
           if [ "$SHOULD_SYNC" = "true" ]; then
-            echo "Executing OKX Simulated Trading sync (x-simulated-trading: 1, XMU-USDT cash spot)..."
-            python src/mu_quant/paper_trading/okx_demo_runner.py
+            echo "Executing 6-Asset Top-2 Rotation OKX Simulated Trading sync (x-simulated-trading: 1, cash spot only)..."
+            python src/mu_quant/rotation/runner.py --no-refresh --sync-okx-demo
           else
             echo "Post-close data-only run (schedule=$SCHEDULE_CRON); skipping OKX Demo order outside US market hours."
           fi
 
-      - name: Commit updated MU data, forward scorecard & OKX demo logs
+      - name: Commit updated MU & 6-Asset Rotation data, forward scorecards & OKX demo logs
         run: |
           git config user.name "mu-quant-bot"
           git config user.email "mu-quant-bot@users.noreply.github.com"
-          git add data/raw/ data/paper_trading/ data/okx_channel/
+          git add data/raw/ data/paper_trading/ data/okx_channel/ data/rotation/
           if ! git diff --cached --quiet; then
-            git commit -m "chore(mu): daily data, forward scorecard & OKX demo sync [skip ci]"
+            git commit -m "chore(mu-rotation): daily data, forward scorecards & OKX demo sync [skip ci]"
             git pull --rebase origin main
             git push origin main
           else
-            echo "No MU data or ledger changes to commit."
+            echo "No MU or Rotation data/ledger changes to commit."
           fi
