@@ -71,6 +71,57 @@ def generate_strategy_signals(
         nan_s = pd.Series(np.nan, index=df.index)
         return pd.Series(1.0, index=df.index), nan_s, nan_s
 
+    if mode == "trend_sniper":
+        """High-conviction Big-Wave Trend Sniper:
+        - Sits FLAT in chop; ONLY enters when 1D macro trend + 4H/1D ADX>=22 + 60-bar Donchian breakout align.
+        - Uses controlled high leverage (default 4.0x Long / 3.0x Short) with tight initial stop (2.5*ATR)
+          and wide trailing stop (5.5*ATR) + 30-bar opposite channel exit to ride full big waves.
+        """
+        entry_w = int(p.get("donchian_entry_window", 60))
+        exit_w = int(p.get("donchian_exit_window", 30))
+        adx_min = float(p.get("adx_min", 22.0))
+        sniper_long_lev = float(p.get("max_long_leverage", 4.0))
+        sniper_short_lev = float(p.get("max_short_leverage", 3.0))
+
+        hi_in = df[f"dc_hi_{entry_w}"].to_numpy()
+        lo_in = df[f"dc_lo_{entry_w}"].to_numpy()
+        hi_out = df[f"dc_hi_{exit_w}"].to_numpy()
+        lo_out = df[f"dc_lo_{exit_w}"].to_numpy()
+        close = df["close"].to_numpy()
+        d1_cl = df["d1_close"].fillna(df["close"]).to_numpy()
+        ema50d = df["ema_50d"].fillna(df["ema_200"]).to_numpy()
+        sma200d = df["sma_200d"].fillna(df["ema_200"]).to_numpy()
+        adx_4h = df["adx_14"].fillna(0.0).to_numpy()
+        adx_1d = df["adx_14d"].fillna(0.0).to_numpy()
+        ema21 = df["ema_21"].to_numpy()
+        ema55 = df["ema_55"].to_numpy()
+
+        n = len(df)
+        tgt = np.zeros(n)
+        cur = 0
+        for i in range(n):
+            if not np.isfinite(hi_in[i]) or not np.isfinite(lo_in[i]):
+                continue
+            bull_macro = (d1_cl[i] > ema50d[i]) and (d1_cl[i] > sma200d[i]) and (ema21[i] > ema55[i])
+            bear_macro = (d1_cl[i] < ema50d[i]) and (d1_cl[i] < sma200d[i]) and (ema21[i] < ema55[i])
+            strong_trend = (adx_4h[i] >= adx_min) and (adx_1d[i] >= adx_min)
+            if cur == 0:
+                if close[i] > hi_in[i] and bull_macro and strong_trend:
+                    cur = 1
+                elif close[i] < lo_in[i] and bear_macro and strong_trend:
+                    cur = -1
+            elif cur == 1:
+                if close[i] < lo_out[i] or (close[i] < ema55[i] and ema21[i] < ema55[i]):
+                    cur = 0
+            elif cur == -1:
+                if close[i] > hi_out[i] or (close[i] > ema55[i] and ema21[i] > ema55[i]):
+                    cur = 0
+            tgt[i] = sniper_long_lev if cur == 1 else (-sniper_short_lev if cur == -1 else 0.0)
+
+        stop_dist = (df["atr_pct"] * float(p.get("stop_atr_mult", 2.5))).clip(0.03, 0.09)
+        trail_dist = (df["atr_pct"] * float(p.get("trail_atr_mult", 5.5))).clip(0.06, 0.20)
+        return pd.Series(tgt, index=df.index, name="target_leverage"), stop_dist, trail_dist
+
     if mode == "cta_trend_ensemble":
         t1, s1, tr1 = generate_strategy_signals(df, mode="donchian_cta", params=params)
         t2, s2, tr2 = generate_strategy_signals(df, mode="dual_horizon_ensemble", params=params)

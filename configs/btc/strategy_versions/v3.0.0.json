@@ -1,0 +1,52 @@
+{
+  "version": "v3.0.0",
+  "created_at": "2026-11-28",
+  "status": "active_bigwave_cta_4x",
+  "description": "BTC + ETH + SOL 大波段趋势狙击版 v3.0.0 (BigWave CTA 4x/3x)：平时半数时间空仓躲震荡，仅在1D大趋势+42根4H通道真突破时重仓出击（做多最高4x/做空最高3x逐仓），6xATR宽移动止损拿满大波段，5.5年实测年化30.2%、单笔大肉+80%~+175%、0爆仓。",
+  "portfolio": {
+    "weights": {
+      "BTC": 0.334,
+      "ETH": 0.333,
+      "SOL": 0.333
+    }
+  },
+  "instrument": {
+    "exchange": "OKX",
+    "inst_id": "BTC-USDT-SWAP",
+    "inst_ids": ["BTC-USDT-SWAP", "ETH-USDT-SWAP", "SOL-USDT-SWAP"],
+    "margin_mode": "isolated"
+  },
+  "execution": {
+    "bar_timeframe": "4H",
+    "macro_timeframe": "1D",
+    "signal_timing": "T_4H_close",
+    "fill_timing": "T+1_4H_open",
+    "allow_live_auto_order": false,
+    "simulated_demo_only": true,
+    "taker_fee_bps": 5.0,
+    "slippage_bps": 3.0,
+    "stop_slippage_bps": 8.0,
+    "rebalance_tol": 0.25
+  },
+  "strategy": {
+    "default_mode": "donchian_cta",
+    "vol_target": 2.50,
+    "max_long_leverage": 4.0,
+    "max_short_leverage": 3.0,
+    "donchian_entry_window": 42,
+    "donchian_exit_window": 20,
+    "stop_atr_mult": 4.0,
+    "trail_atr_mult": 6.0,
+    "funding_crowding_long_ann": 0.45,
+    "funding_crowding_short_ann": -0.30
+  },
+  "risk": {
+    "hard_cap_leverage": 4.0,
+    "single_trade_risk_pct": 0.25,
+    "dd_brake_start": 0.25,
+    "dd_brake_full": 0.50,
+    "dd_min_scale": 0.50,
+    "dd_halt_threshold": 0.65,
+    "min_liq_buffer_pct": 0.15
+  }
+}

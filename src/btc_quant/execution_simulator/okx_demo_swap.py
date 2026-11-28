@@ -36,7 +36,7 @@ INST_CT_VAL = {
     "SOL-USDT-SWAP": 1.0,
 }
 ALLOWED_TD_MODE = "isolated"
-MAX_ALLOWED_LEVERAGE = 3
+MAX_ALLOWED_LEVERAGE = 4
 
 DEMO_ORDERS_LOG = OKX_DEMO_DIR / "btc_swap_demo_orders.csv"
 
