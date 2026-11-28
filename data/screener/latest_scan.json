@@ -3,7 +3,7 @@
   "version": "screener-v2.1.0",
   "name": "美股攻守兼备·全市场漏斗选股与动态配置系统 (零杠杆 · MA200 · DVol风控)",
   "signal_date": "2026-11-27",
-  "computed_at": "2026-11-28T20:12:48",
+  "computed_at": "2026-11-28T12:13:43",
   "scan_mode": "full_market",
   "funnel": {
     "us_market_total": 13887,
@@ -66,7 +66,7 @@
   "portfolio_plan": {
     "version": "screener-v2.1.0",
     "signal_date": "2026-11-27",
-    "computed_at": "2026-11-28T20:12:48",
+    "computed_at": "2026-11-28T12:13:43",
     "last_rebalance_date": "2026-11-27",
     "rebalance_action": "HOLD",
     "rebalance_reason": "HOLD_BIWEEKLY_WINDOW (持仓均健康，距下次常规换股 14 天)",
