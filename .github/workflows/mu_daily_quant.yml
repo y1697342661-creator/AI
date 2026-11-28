@@ -1,5 +1,5 @@
-# Dedicated MU 2.0 cloud workflow (isolated MU / MU_OKX_DEMO_* secrets, zero leverage XMU-USDT spot only)
-name: MU 2.0 Daily Quant & OKX Demo Cloud Runner
+# Dedicated 7-Asset US Stock Cross-Sector Top-2 Rotation (Alpaca Paper Trading ONLY, Zero Leverage, BTC Isolated)
+name: US Stocks 7-Choose-2 Rotation & Alpaca Paper Cloud Runner
 
 on:
   push:
@@ -7,14 +7,14 @@ on:
     paths:
       - ".github/workflows/mu_daily_quant.yml"
   schedule:
-    # 1) Beijing Tue-Sat 07:00 (post US market close): refresh MU daily data + paper signal + forward scorecard
+    # 1) Beijing Tue-Sat 07:00 (post US market close): refresh 7 US stocks + update forward paper scorecard
     - cron: "0 23 * * 1-5"
-    # 2) Beijing Mon-Fri 22:35 (5 min after US winter open, inside US summer session): sync OKX Demo XMU-USDT spot
+    # 2) Beijing Mon-Fri 22:35 (5 min after US winter open, inside US summer session): auto-sync Alpaca Paper Trading
     - cron: "35 14 * * 1-5"
   workflow_dispatch:
     inputs:
       execute_demo:
-        description: "Sync XMU-USDT spot position on OKX Simulated Trading (x-simulated-trading: 1 ONLY)"
+        description: "Auto-rebalance 7 US stocks on Alpaca Paper Trading (paper-api.alpaca.markets ONLY)"
         type: boolean
         default: true
 
@@ -22,11 +22,11 @@ permissions:
   contents: write
 
 concurrency:
-  group: mu-daily-quant
+  group: us-rotation-alpaca
   cancel-in-progress: false
 
 jobs:
-  run-mu-daily:
+  run-us-rotation:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -43,11 +43,6 @@ jobs:
       - name: Install minimal dependencies
         run: pip install -r requirements-mu.txt
 
-      - name: Run MU Daily Data Refresh, Paper Signal & Forward Scorecard
-        env:
-          PYTHONPATH: src
-        run: python src/mu_quant/paper_trading/daily_runner.py --force-refresh
-
       - name: Run 7-Asset Cross-Sector Rotation Data, Paper Scorecard & Alpaca Paper Auto-Sync
         env:
           PYTHONPATH: src
@@ -57,7 +52,7 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           SCHEDULE_CRON: ${{ github.event.schedule }}
           INPUT_EXECUTE: ${{ inputs.execute_demo }}
-          VAR_AUTO_EXECUTE: ${{ vars.MU_AUTO_EXECUTE_DEMO }}
+          VAR_AUTO_EXECUTE: ${{ vars.ROTATION_AUTO_EXECUTE }}
         run: |
           python src/mu_quant/rotation/runner.py
           HAS_ALPACA="false"
@@ -72,63 +67,21 @@ jobs:
             elif [ "$SCHEDULE_CRON" = "35 14 * * 1-5" ] && [ "$VAR_AUTO_EXECUTE" != "false" ]; then
               python src/mu_quant/rotation/runner.py --no-refresh --sync-alpaca-paper
             else
-              echo "Post-close data-only run; skipping Alpaca Paper order outside US market hours."
+              echo "Post-close data-only run (schedule=$SCHEDULE_CRON); skipping Alpaca order outside US market hours."
             fi
           else
-            echo "No ALPACA_PAPER secret configured yet; updated rotation paper scorecard only."
+            echo "No ALPACA_PAPER secret configured; updated rotation paper scorecard only."
           fi
 
-      - name: Run OKX Simulated Trading Sync (XMU-USDT Live-Liquidity Spot Only)
-        env:
-          PYTHONPATH: src
-          MU_SECRET_JSON: ${{ secrets.MU }}
-          MU_OKX_DEMO_API_KEY: ${{ secrets.MU_OKX_DEMO_API_KEY }}
-          MU_OKX_DEMO_SECRET_KEY: ${{ secrets.MU_OKX_DEMO_SECRET_KEY }}
-          MU_OKX_DEMO_PASSPHRASE: ${{ secrets.MU_OKX_DEMO_PASSPHRASE }}
-          OKX_DEMO_API_KEY: ${{ secrets.OKX_DEMO_API_KEY }}
-          OKX_DEMO_SECRET_KEY: ${{ secrets.OKX_DEMO_SECRET_KEY }}
-          OKX_DEMO_PASSPHRASE: ${{ secrets.OKX_DEMO_PASSPHRASE }}
-          EVENT_NAME: ${{ github.event_name }}
-          SCHEDULE_CRON: ${{ github.event.schedule }}
-          INPUT_EXECUTE: ${{ inputs.execute_demo }}
-          VAR_AUTO_EXECUTE: ${{ vars.MU_AUTO_EXECUTE_DEMO }}
+      - name: Commit updated 7-Asset Rotation data, forward scorecard & Alpaca Paper orders
         run: |
-          if [ -n "$MU_OKX_DEMO_API_KEY" ]; then
-            echo "Secret source: dedicated MU_OKX_DEMO_* (isolated from BTC_OKX_DEMO_*)"
-          elif [ -n "$MU_SECRET_JSON" ]; then
-            echo "Secret source: dedicated MU JSON secret (isolated from BTC)"
-          elif [ -n "$OKX_DEMO_API_KEY" ]; then
-            echo "Secret source: fallback OKX_DEMO_*"
-          else
-            echo "No MU / MU_OKX_DEMO_API_KEY / OKX_DEMO_API_KEY secret configured; skipping OKX Demo sync."
-            exit 0
-          fi
-
-          SHOULD_SYNC="false"
-          if [ "$EVENT_NAME" = "workflow_dispatch" ] && [ "$INPUT_EXECUTE" = "true" ]; then
-            SHOULD_SYNC="true"
-          elif [ "$EVENT_NAME" = "push" ] && [ "$VAR_AUTO_EXECUTE" != "false" ]; then
-            SHOULD_SYNC="true"
-          elif [ "$SCHEDULE_CRON" = "35 14 * * 1-5" ] && [ "$VAR_AUTO_EXECUTE" != "false" ]; then
-            SHOULD_SYNC="true"
-          fi
-
-          if [ "$SHOULD_SYNC" = "true" ]; then
-            echo "Executing XMU-USDT OKX Simulated Trading sync (only stock token with live demo market-maker)..."
-            python src/mu_quant/paper_trading/okx_demo_runner.py
-          else
-            echo "Post-close data-only run (schedule=$SCHEDULE_CRON); skipping OKX Demo order outside US market hours."
-          fi
-
-      - name: Commit updated MU & 6-Asset Rotation data, forward scorecards & OKX demo logs
-        run: |
-          git config user.name "mu-quant-bot"
-          git config user.email "mu-quant-bot@users.noreply.github.com"
-          git add data/raw/ data/paper_trading/ data/okx_channel/ data/rotation/
+          git config user.name "us-rotation-bot"
+          git config user.email "us-rotation-bot@users.noreply.github.com"
+          git add data/rotation/
           if ! git diff --cached --quiet; then
-            git commit -m "chore(mu-rotation): daily data, forward scorecards & OKX demo sync [skip ci]"
+            git commit -m "chore(rotation): daily 7-asset data, forward scorecard & Alpaca paper sync [skip ci]"
             git pull --rebase origin main
             git push origin main
           else
-            echo "No MU or Rotation data/ledger changes to commit."
+            echo "No rotation data/ledger changes to commit."
           fi
