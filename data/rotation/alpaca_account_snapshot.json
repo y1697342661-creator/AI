@@ -1,0 +1,64 @@
+{
+  "ok": true,
+  "paper_only": true,
+  "synced_at": "2026-11-28T11:29:24",
+  "account_number": "PA33PUKOC",
+  "status": "ACTIVE",
+  "initial_equity": 100000.0,
+  "equity": 100000.0,
+  "last_equity": 0.0,
+  "cash": 100000.0,
+  "invested_value": 0,
+  "daily_pl": 100000.0,
+  "daily_plpc": 0.0,
+  "total_return_usd": 0.0,
+  "total_return_pct": 0.0,
+  "positions": [],
+  "open_orders": [
+    {
+      "id": "55fe3158-8816-4d63-ad89-625cce9db3ae",
+      "symbol": "ABBV",
+      "side": "BUY",
+      "notional": 5000.0,
+      "qty": null,
+      "status": "accepted",
+      "submitted_at": "2026-11-28T11:29:24.591390371Z"
+    },
+    {
+      "id": "3dd7efd0-6d76-4722-b31d-0199a0e82271",
+      "symbol": "V",
+      "side": "BUY",
+      "notional": 5000.0,
+      "qty": null,
+      "status": "accepted",
+      "submitted_at": "2026-11-28T11:29:24.421901906Z"
+    },
+    {
+      "id": "a0c19a99-3f8f-48ed-adb8-09d54b8b9652",
+      "symbol": "MA",
+      "side": "BUY",
+      "notional": 5000.0,
+      "qty": null,
+      "status": "accepted",
+      "submitted_at": "2026-11-28T11:29:24.242737176Z"
+    },
+    {
+      "id": "56c38653-793b-4c7d-a701-c6a9d1671a42",
+      "symbol": "WMT",
+      "side": "BUY",
+      "notional": 32500.0,
+      "qty": null,
+      "status": "accepted",
+      "submitted_at": "2026-11-28T11:29:24.067470995Z"
+    },
+    {
+      "id": "5f8e4895-4efb-4eca-bf99-13ae036c8226",
+      "symbol": "COST",
+      "side": "BUY",
+      "notional": 32500.0,
+      "qty": null,
+      "status": "accepted",
+      "submitted_at": "2026-11-28T11:29:23.887238173Z"
+    }
+  ]
+}
