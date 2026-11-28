@@ -662,8 +662,14 @@ function renderAlpacaPortfolio(d) {
     const srcTxt = d.source === 'live_alpaca_paper' ? '实时直连 Alpaca' : '云端最新快照';
     document.getElementById('alpacaSyncMeta').textContent = `${srcTxt} · 更新于 ${snap.synced_at || '-'}`;
 
+    const hasPrev = Number(snap.last_equity || 0) > 0;
+    const dailyPl = hasPrev ? Number(snap.daily_pl || 0) : 0;
+    const dailyPct = hasPrev ? Number(snap.daily_plpc || 0) : 0;
+
     document.getElementById('alpacaEquity').textContent = fmtUsd(snap.equity);
-    document.getElementById('alpacaEquitySub').textContent = `初始本金 ${fmtUsd(initEq)} · 昨日 ${fmtUsd(snap.last_equity)}`;
+    document.getElementById('alpacaEquitySub').textContent = hasPrev
+      ? `初始本金 ${fmtUsd(initEq)} · 昨日 ${fmtUsd(snap.last_equity)}`
+      : `初始本金 ${fmtUsd(initEq)} · 首次建仓待开盘成交`;
 
     const retEl = document.getElementById('alpacaTotalRet');
     retEl.textContent = fmtPct(snap.total_return_pct);
@@ -671,9 +677,9 @@ function renderAlpacaPortfolio(d) {
     document.getElementById('alpacaTotalPl').textContent = fmtUsd(snap.total_return_usd, true);
 
     const dayEl = document.getElementById('alpacaDailyPl');
-    dayEl.textContent = fmtUsd(snap.daily_pl, true);
-    dayEl.className = 'kpi-val ' + ((snap.daily_pl || 0) >= 0 ? 'pos' : 'neg');
-    document.getElementById('alpacaDailyPct').textContent = fmtPct(snap.daily_plpc);
+    dayEl.textContent = fmtUsd(dailyPl, true);
+    dayEl.className = 'kpi-val ' + (dailyPl >= 0 ? 'pos' : 'neg');
+    document.getElementById('alpacaDailyPct').textContent = fmtPct(dailyPct);
 
     document.getElementById('alpacaCash').textContent = fmtUsd(snap.cash);
     const invPct = snap.equity > 0 ? ((snap.invested_value || 0) / snap.equity * 100).toFixed(1) : '0.0';

@@ -110,7 +110,8 @@ def get_alpaca_paper_account() -> dict[str, Any]:
     positions = pos if code_p == 200 and isinstance(pos, list) else []
 
     equity = float(acc.get("equity") or 0.0)
-    last_equity = float(acc.get("last_equity") or equity)
+    raw_last_eq = float(acc.get("last_equity") or 0.0)
+    last_equity = raw_last_eq if raw_last_eq > 0 else equity
     cash = float(acc.get("cash") or 0.0)
     daily_pl = equity - last_equity
     daily_plpc = (daily_pl / last_equity) if last_equity > 0 else 0.0
