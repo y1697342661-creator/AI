@@ -415,18 +415,22 @@ def get_alpaca_clock() -> dict[str, Any]:
     }
 
 
-def cancel_all_open_orders_and_wait(timeout_sec: float = 8.0) -> list[dict[str, Any]]:
-    """Cancel all open Alpaca Paper orders and wait until they clear (prevents duplicate stacking)."""
+def cancel_all_open_orders_and_wait(timeout_sec: float = 10.0) -> list[dict[str, Any]]:
+    """Cancel all open Alpaca Paper orders and wait until no active open orders remain."""
     _alpaca_request("DELETE", "/v2/orders")
     deadline = time.time() + timeout_sec
-    remaining = get_alpaca_open_orders()
+    _TERMINAL = {"canceled", "pending_cancel", "expired", "filled", "rejected", "replaced"}
+
+    def _active() -> list[dict[str, Any]]:
+        return [o for o in get_alpaca_open_orders() if str(o.get("status", "")).lower() not in _TERMINAL]
+
+    remaining = _active()
     while remaining and time.time() < deadline:
-        # Try explicit per-order cancel if bulk cancel left accepted weekend orders
         for o in remaining:
             if o.get("id"):
                 _alpaca_request("DELETE", f"/v2/orders/{o['id']}")
         time.sleep(0.8)
-        remaining = get_alpaca_open_orders()
+        remaining = _active()
     return remaining
 
 
