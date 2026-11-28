@@ -1,48 +1,48 @@
 {
   "ok": true,
   "skipped": false,
-  "refreshed_at": "2026-11-27T22:53:27",
+  "refreshed_at": "2026-11-28T04:26:13",
   "symbols": {
     "MU": {
       "ok": true,
-      "source": "eastmoney",
+      "source": "eastmoney_noop",
       "rows": 10558,
-      "added": 1,
+      "added": 0,
       "last_date": "2026-11-27"
     },
     "SMH": {
       "ok": true,
-      "source": "eastmoney",
+      "source": "eastmoney_noop",
       "rows": 6661,
-      "added": 1,
+      "added": 0,
       "last_date": "2026-11-27"
     },
     "SOX": {
       "ok": true,
-      "source": "yahoo",
+      "source": "yahoo_noop",
       "rows": 8198,
-      "added": 1,
+      "added": 0,
       "last_date": "2026-11-27"
     },
     "SPY": {
       "ok": true,
-      "source": "eastmoney",
+      "source": "eastmoney_noop",
       "rows": 8516,
-      "added": 1,
+      "added": 0,
       "last_date": "2026-11-27"
     },
     "QQQ": {
       "ok": true,
-      "source": "eastmoney",
+      "source": "eastmoney_noop",
       "rows": 6974,
-      "added": 1,
+      "added": 0,
       "last_date": "2026-11-27"
     },
     "NVDA": {
       "ok": true,
-      "source": "eastmoney",
+      "source": "eastmoney_noop",
       "rows": 7006,
-      "added": 1,
+      "added": 0,
       "last_date": "2026-11-27"
     }
   }
