@@ -1,0 +1,5 @@
+﻿recorded_at,simulated_only,version,inst_id,side,prev_weight,target_weight,order_sz,est_usdt,ref_px,ok,ord_id,msg
+2026-11-28T12:00:43,True,rotation-v1.0.0,XMU-USDT,SELL,0.3863,0.0,44.786457,28964.75,646.73,False,,All operations failed
+2026-11-28T12:00:44,True,rotation-v1.0.0,XPLTR-USDT,BUY,0.0,0.5,37485.37,37485.37,172.82,False,,"{""msg"":""This API Key does not have trading permission for the Crypto"",""code"":""50123""}"
+2026-11-28T12:15:08,True,rotation-v1.0.0,XMU-USDT,SELL,0.386,0.0,44.786456,28925.33,645.85,True,4138499909111148546,Order placed
+2026-11-28T12:15:09,True,rotation-v1.0.0,XPLTR-USDT,BUY,0.0,0.5,37465.67,37465.67,172.57,False,,"{""msg"":""This API Key does not have trading permission for the Crypto"",""code"":""50123""}"

@@ -19,7 +19,7 @@ class TestRotationV1(unittest.TestCase):
         self.assertEqual(cfg["execution"]["td_mode"], "cash")
         syms = {u["symbol"] for u in cfg["universe"]}
         insts = {u["okx_inst_id"] for u in cfg["universe"]}
-        self.assertEqual(syms, {"MU", "AVGO", "PLTR", "HOOD", "RKLB", "QQQ"})
+        self.assertEqual(syms, {"MU", "AVGO", "PLTR", "GOOGL", "QQQ"})
         # Must NEVER touch BTC or SWAP
         for inst in insts:
             self.assertNotIn("BTC", inst)

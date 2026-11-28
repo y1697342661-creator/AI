@@ -1,14 +1,13 @@
 {
   "version": "rotation-v1.0.0",
-  "name": "美股6选2跨赛道高弹性趋势轮动 (零杠杆现货)",
+  "name": "美股5选2跨赛道高弹性趋势轮动 (零杠杆现货)",
   "frozen": true,
   "universe": [
-    {"symbol": "MU",   "eastmoney_secid": "105.MU",   "okx_inst_id": "XMU-USDT",   "theme": "存储芯片周期"},
-    {"symbol": "AVGO", "eastmoney_secid": "105.AVGO", "okx_inst_id": "XAVGO-USDT", "theme": "AI定制芯片与通信"},
-    {"symbol": "PLTR", "eastmoney_secid": "105.PLTR", "okx_inst_id": "XPLTR-USDT", "theme": "AI企业软件"},
-    {"symbol": "HOOD", "eastmoney_secid": "105.HOOD", "okx_inst_id": "XHOOD-USDT", "theme": "新一代金融科技"},
-    {"symbol": "RKLB", "eastmoney_secid": "105.RKLB", "okx_inst_id": "XRKLB-USDT", "theme": "商业航天硬科技"},
-    {"symbol": "QQQ",  "eastmoney_secid": "105.QQQ",  "okx_inst_id": "XQQQ-USDT",  "theme": "纳指100兜底基石"}
+    {"symbol": "MU",    "eastmoney_secid": "105.MU",    "okx_inst_id": "XMU-USDT",    "theme": "存储芯片周期"},
+    {"symbol": "AVGO",  "eastmoney_secid": "105.AVGO",  "okx_inst_id": "XAVGO-USDT",  "theme": "AI定制芯片与通信"},
+    {"symbol": "PLTR",  "eastmoney_secid": "105.PLTR",  "okx_inst_id": "XPLTR-USDT",  "theme": "AI企业软件"},
+    {"symbol": "GOOGL", "eastmoney_secid": "105.GOOGL", "okx_inst_id": "XGOOGL-USDT", "theme": "AI云与搜索平台"},
+    {"symbol": "QQQ",   "eastmoney_secid": "105.QQQ",   "okx_inst_id": "XQQQ-USDT",   "theme": "纳指100兜底基石"}
   ],
   "rules": {
     "trend_ma_days": 200,
