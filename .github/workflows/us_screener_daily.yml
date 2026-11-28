@@ -1,0 +1,77 @@
+# Daily US Stock Offense+Defense Full-Market Funnel Screener & Dynamic Allocation (Cloud Auto-Scan, Zero Auto-Order)
+name: US Stocks Daily Offense-Defense Screener
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/us_screener_daily.yml"
+      - "configs/screener_v1.0.0.json"
+  schedule:
+    # Beijing Tue-Sat 06:30 (UTC Mon-Fri 22:30, right after US market close)
+    - cron: "30 22 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      scan_mode:
+        description: "Scan mode (full_market = 2-stage US market funnel / curated = 48-asset core pool)"
+        type: choice
+        default: "full_market"
+        options:
+          - full_market
+          - curated
+      preset:
+        description: "Report preset"
+        type: choice
+        default: "core_momentum"
+        options:
+          - core_momentum
+          - defense_shield
+          - breakout_52w
+          - market_discovery
+          - all
+
+permissions:
+  contents: write
+
+concurrency:
+  group: us-stock-screener-daily
+  cancel-in-progress: false
+
+jobs:
+  run-us-screener:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: "requirements-mu.txt"
+
+      - name: Install minimal dependencies
+        run: pip install -r requirements-mu.txt
+
+      - name: Run US Stock Offense+Defense Full-Market Screener & Dynamic Allocation
+        env:
+          PYTHONPATH: src
+          INPUT_SCAN_MODE: ${{ inputs.scan_mode || 'full_market' }}
+          INPUT_PRESET: ${{ inputs.preset || 'core_momentum' }}
+        run: |
+          python src/mu_quant/screener/runner.py --scan-mode "$INPUT_SCAN_MODE" --preset "$INPUT_PRESET" --refresh --write-report --top 15
+
+      - name: Commit updated Screener data, daily report & rotation-compatible allocation
+        run: |
+          git config user.name "us-screener-bot"
+          git config user.email "us-screener-bot@users.noreply.github.com"
+          git add data/screener/
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(screener): daily full-market offense-defense scan & allocation [skip ci]"
+            git pull --rebase origin main
+            git push origin main
+          else
+            echo "No screener data/report changes to commit."
+          fi

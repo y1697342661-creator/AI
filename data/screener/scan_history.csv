@@ -1,0 +1,4 @@
+﻿scanned_at,signal_date,preset,above_ma200,total,top5,regime
+2026-11-28T13:34:35,2026-11-27,core_momentum,10,36,"AAPL,TSLA,PANW,ISRG,META",
+2026-11-28T13:57:53,2026-11-27,core_momentum,34,88,"MA,V,ABBV,HD,KO",BEAR_DEFENSE
+2026-11-28T18:58:48,2026-11-27,core_momentum,33,84,"MA,V,ABBV,HD,KO",BEAR_DEFENSE

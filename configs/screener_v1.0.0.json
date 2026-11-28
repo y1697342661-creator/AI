@@ -1,0 +1,115 @@
+{
+  "version": "screener-v2.0.0",
+  "name": "美股攻守兼备·全市场漏斗选股与动态配置系统 (零杠杆 · MA200 · DVol风控)",
+  "benchmark": "QQQ",
+  "macro_benchmarks": ["SPY", "QQQ"],
+  "rules": {
+    "trend_ma_days": 200,
+    "mid_ma_days": 50,
+    "short_ma_days": 20,
+    "mom_short_days": 20,
+    "mom_mid_days": 60,
+    "mom_long_days": 120,
+    "dvol_window": 21,
+    "target_downside_vol": 0.55,
+    "atr_window": 14,
+    "stop_atr_mult": 2.5,
+    "rsi_window": 14,
+    "rsi_overheat": 80.0,
+    "max_leverage": 1.0
+  },
+  "funnel": {
+    "enabled_by_default": false,
+    "snapshot_fetch_size": 260,
+    "funnel_top_n": 60,
+    "min_price_usd": 5.0,
+    "min_market_cap_usd": 3000000000,
+    "min_daily_turnover_usd": 50000000
+  },
+  "allocation": {
+    "offense_slots": 3,
+    "defense_slots": 2,
+    "max_per_sector": 2,
+    "max_single_weight": 0.35,
+    "regimes": {
+      "BULL_OFFENSE":    {"label": "牛市进攻", "offense_budget": 0.80, "defense_budget": 0.20, "cash_floor": 0.00},
+      "NEUTRAL_BALANCE": {"label": "震荡平衡", "offense_budget": 0.45, "defense_budget": 0.45, "cash_floor": 0.10},
+      "BEAR_DEFENSE":    {"label": "熊市防守", "offense_budget": 0.15, "defense_budget": 0.65, "cash_floor": 0.20}
+    }
+  },
+  "presets": {
+    "core_momentum": {
+      "label": "核心进攻动量",
+      "desc": "进攻池/全市场：站上200日年线 + 60日跑赢QQQ + 风险调整动量领先 + 避开极端超买"
+    },
+    "defense_shield": {
+      "label": "防守避险盾牌",
+      "desc": "美股低波/医疗/消费/公用事业防御ETF与现金牛蓝筹：震荡与熊市对冲回撤，搭配纯现金防守"
+    },
+    "breakout_52w": {
+      "label": "52周新高主升浪",
+      "desc": "均线多头排列(C>MA20>MA50>MA200) + 距52周高点12%以内 + 20日正动量"
+    },
+    "market_discovery": {
+      "label": "全市场新黑马",
+      "desc": "全美股漏斗初筛挖出的核心池外活跃正股（需开启「全美股扫描」）"
+    },
+    "all": {
+      "label": "全池透视",
+      "desc": "查看全部进攻股、防守避险资产及全市场发现标的的完整体检"
+    }
+  },
+  "universe": [
+    {"symbol": "NVDA",  "eastmoney_secid": "105.NVDA",  "role": "offense",   "sector": "AI芯片与半导体", "theme": "AI算力GPU绝对龙头"},
+    {"symbol": "AVGO",  "eastmoney_secid": "105.AVGO",  "role": "offense",   "sector": "AI芯片与半导体", "theme": "AI定制芯片(ASIC)与通信"},
+    {"symbol": "MU",    "eastmoney_secid": "105.MU",    "role": "offense",   "sector": "AI芯片与半导体", "theme": "HBM与存储芯片周期"},
+    {"symbol": "AMD",   "eastmoney_secid": "105.AMD",   "role": "offense",   "sector": "AI芯片与半导体", "theme": "数据中心CPU与AI芯片"},
+    {"symbol": "TSM",   "eastmoney_secid": "106.TSM",   "role": "offense",   "sector": "AI芯片与半导体", "theme": "全球先进制程晶圆代工"},
+    {"symbol": "MRVL",  "eastmoney_secid": "105.MRVL",  "role": "offense",   "sector": "AI芯片与半导体", "theme": "高速光互联与定制芯片"},
+    {"symbol": "ARM",   "eastmoney_secid": "105.ARM",   "role": "offense",   "sector": "AI芯片与半导体", "theme": "AI端侧与架构授权龙头"},
+    {"symbol": "SMH",   "eastmoney_secid": "105.SMH",   "role": "offense",   "sector": "AI芯片与半导体", "theme": "半导体行业ETF"},
+
+    {"symbol": "PLTR",  "eastmoney_secid": "105.PLTR",  "role": "offense",   "sector": "AI软件与数据",   "theme": "AI企业级决策与国防软件"},
+    {"symbol": "APP",   "eastmoney_secid": "105.APP",   "role": "offense",   "sector": "AI软件与数据",   "theme": "AI广告引擎高弹性龙头"},
+    {"symbol": "SNOW",  "eastmoney_secid": "106.SNOW",  "role": "offense",   "sector": "AI软件与数据",   "theme": "云端数据仓库与AI数据层"},
+    {"symbol": "CRWD",  "eastmoney_secid": "105.CRWD",  "role": "offense",   "sector": "AI软件与数据",   "theme": "AI云原生网络安全龙头"},
+    {"symbol": "PANW",  "eastmoney_secid": "105.PANW",  "role": "offense",   "sector": "AI软件与数据",   "theme": "企业级网络安全平台"},
+    {"symbol": "ORCL",  "eastmoney_secid": "106.ORCL",  "role": "offense",   "sector": "AI软件与数据",   "theme": "AI算力云基础设施与数据库"},
+    {"symbol": "MSFT",  "eastmoney_secid": "105.MSFT",  "role": "offense",   "sector": "AI软件与数据",   "theme": "企业云Azure与AI生态"},
+
+    {"symbol": "GOOGL", "eastmoney_secid": "105.GOOGL", "role": "offense",   "sector": "云与超级平台",   "theme": "AI云、TPU与搜索平台"},
+    {"symbol": "META",  "eastmoney_secid": "105.META",  "role": "offense",   "sector": "云与超级平台",   "theme": "AI推荐广告与开源大模型"},
+    {"symbol": "AMZN",  "eastmoney_secid": "105.AMZN",  "role": "offense",   "sector": "云与超级平台",   "theme": "AWS云计算与全球电商"},
+    {"symbol": "AAPL",  "eastmoney_secid": "105.AAPL",  "role": "offense",   "sector": "云与超级平台",   "theme": "端侧AI硬件与现金流基石"},
+    {"symbol": "NFLX",  "eastmoney_secid": "105.NFLX",  "role": "offense",   "sector": "云与超级平台",   "theme": "全球流媒体与订阅现金流"},
+
+    {"symbol": "RKLB",  "eastmoney_secid": "105.RKLB",  "role": "offense",   "sector": "航天与硬科技",   "theme": "商业航天火箭与卫星系统"},
+    {"symbol": "ASTS",  "eastmoney_secid": "105.ASTS",  "role": "offense",   "sector": "航天与硬科技",   "theme": "手机直连低轨卫星通信"},
+    {"symbol": "TSLA",  "eastmoney_secid": "105.TSLA",  "role": "offense",   "sector": "航天与硬科技",   "theme": "智驾FSD、储能与人形机器人"},
+    {"symbol": "ISRG",  "eastmoney_secid": "105.ISRG",  "role": "offense",   "sector": "航天与硬科技",   "theme": "医疗手术机器人绝对龙头"},
+    {"symbol": "AXON",  "eastmoney_secid": "105.AXON",  "role": "offense",   "sector": "航天与硬科技",   "theme": "公共安全AI硬件与SaaS"},
+
+    {"symbol": "VST",   "eastmoney_secid": "106.VST",   "role": "offense",   "sector": "AI电力与核电",   "theme": "AI数据中心供电与核电"},
+    {"symbol": "CEG",   "eastmoney_secid": "105.CEG",   "role": "offense",   "sector": "AI电力与核电",   "theme": "美国最大核电清洁能源商"},
+    {"symbol": "GEV",   "eastmoney_secid": "106.GEV",   "role": "offense",   "sector": "AI电力与核电",   "theme": "燃气轮机与电网设备龙头"},
+    {"symbol": "OKLO",  "eastmoney_secid": "106.OKLO",  "role": "offense",   "sector": "AI电力与核电",   "theme": "小型模块化核反应堆(SMR)"},
+
+    {"symbol": "HOOD",  "eastmoney_secid": "105.HOOD",  "role": "offense",   "sector": "金融科技与加密", "theme": "新一代散户券商与加密入口"},
+    {"symbol": "COIN",  "eastmoney_secid": "105.COIN",  "role": "offense",   "sector": "金融科技与加密", "theme": "合规加密资产交易平台"},
+    {"symbol": "SOFI",  "eastmoney_secid": "105.SOFI",  "role": "offense",   "sector": "金融科技与加密", "theme": "数字银行与金融科技生态"},
+    {"symbol": "NU",    "eastmoney_secid": "106.NU",    "role": "offense",   "sector": "金融科技与加密", "theme": "拉美高增长数字银行龙头"},
+    {"symbol": "MSTR",  "eastmoney_secid": "105.MSTR",  "role": "offense",   "sector": "金融科技与加密", "theme": "BTC资产负债表高弹性代理"},
+
+    {"symbol": "USMV",  "eastmoney_secid": "107.USMV",  "role": "defense",   "sector": "防御行业与低波",  "theme": "美股最小波动率ETF·抗跌压舱石"},
+    {"symbol": "XLV",   "eastmoney_secid": "107.XLV",   "role": "defense",   "sector": "防御行业与低波",  "theme": "标普医疗健康ETF·弱周期防御"},
+    {"symbol": "XLP",   "eastmoney_secid": "107.XLP",   "role": "defense",   "sector": "防御行业与低波",  "theme": "标普必需消费ETF·现金流防御"},
+    {"symbol": "XLU",   "eastmoney_secid": "107.XLU",   "role": "defense",   "sector": "防御行业与低波",  "theme": "标普公用事业ETF·高股息防御"},
+    {"symbol": "WMT",   "eastmoney_secid": "105.WMT",   "role": "defense",   "sector": "防御蓝筹现金牛",  "theme": "沃尔玛·逆周期零售龙头"},
+    {"symbol": "COST",  "eastmoney_secid": "105.COST",  "role": "defense",   "sector": "防御蓝筹现金牛",  "theme": "开市客·会员制稳定现金流"},
+    {"symbol": "LLY",   "eastmoney_secid": "106.LLY",   "role": "defense",   "sector": "防御蓝筹现金牛",  "theme": "礼来·GLP-1医药成长防御"},
+    {"symbol": "JNJ",   "eastmoney_secid": "106.JNJ",   "role": "defense",   "sector": "防御蓝筹现金牛",  "theme": "强生·AAA评级医药消费基石"},
+
+    {"symbol": "QQQ",   "eastmoney_secid": "105.QQQ",   "role": "benchmark", "sector": "宽基基准ETF",     "theme": "纳指100科技大盘基准"},
+    {"symbol": "SPY",   "eastmoney_secid": "107.SPY",   "role": "benchmark", "sector": "宽基基准ETF",     "theme": "标普500全市场大盘基准"}
+  ]
+}

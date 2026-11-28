@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>美股攻守兼备 · 全市场漏斗选股与动态配置系统</title>
+<style>
+  :root {
+    --bg: #0b0f17; --card: #131a26; --card2: #172033; --border: #243044; --text: #e6edf7; --muted: #8b9bb4;
+    --green: #22c55e; --red: #ef4444; --amber: #f59e0b; --blue: #3b82f6; --purple: #a855f7; --cyan: #06b6d4;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: "Microsoft YaHei", "Segoe UI", sans-serif; background: var(--bg); color: var(--text); font-size: 14px; }
+  header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; padding: 14px 22px; background: var(--card); border-bottom: 1px solid var(--border); gap: 12px; }
+  .title { font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .badge { font-size: 12px; padding: 3px 9px; border-radius: 999px; background: #1e293b; color: var(--muted); border: 1px solid var(--border); white-space: nowrap; }
+  .badge.safe { color: var(--green); border-color: #166534; background: #052e16; }
+  .badge.regime-bull { color: #86efac; border-color: #166534; background: #052e16; font-weight: 700; }
+  .badge.regime-neutral { color: #fde68a; border-color: #b45309; background: #451a03; font-weight: 700; }
+  .badge.regime-bear { color: #fca5a5; border-color: #991b1b; background: #450a0a; font-weight: 700; }
+  .badge.s-grade { color: #fef08a; border-color: #ca8a04; background: #422006; font-weight: 700; }
+  .badge.a-grade { color: #86efac; border-color: #166534; background: #052e16; font-weight: 700; }
+  .badge.b-grade { color: #93c5fd; border-color: #1d4ed8; background: #172554; }
+  .badge.c-grade { color: #cbd5e1; border-color: #475569; background: #1e293b; }
+  .badge.d-grade { color: #fca5a5; border-color: #991b1b; background: #450a0a; }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  button, a.btn { text-decoration: none; cursor: pointer; background: #1d4ed8; color: #fff; border: 1px solid #2563eb; border-radius: 6px; padding: 7px 12px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; }
+  button:hover, a.btn:hover { background: #2563eb; }
+  button.emerald { background: #047857; border-color: #059669; }
+  button.emerald:hover { background: #059669; }
+  button.secondary, a.btn.secondary { background: #1e293b; border-color: var(--border); color: var(--text); }
+  button.secondary:hover, a.btn.secondary:hover { background: #2b394f; }
+  button.pill { background: #162033; border: 1px solid var(--border); color: #cbd5e1; padding: 6px 12px; border-radius: 999px; font-weight: 600; font-size: 12.5px; }
+  button.pill.active { background: #1d4ed8; border-color: #3b82f6; color: #fff; }
+  button.danger-mini { background: transparent; border: 1px solid #7f1d1d; color: #fca5a5; padding: 2px 6px; font-size: 11px; border-radius: 4px; }
+  main { max-width: 1460px; margin: 0 auto; padding: 18px; display: grid; gap: 16px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; }
+  .grid-2 { display: grid; grid-template-columns: 1.2fr 1.8fr; gap: 16px; }
+  @media (max-width: 960px) { .grid-2 { grid-template-columns: 1fr; } }
+  .grid-sectors { display: grid; grid-template-columns: repeat(auto-fit, minmax(175px, 1fr)); gap: 10px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+  .card h3 { margin: 0 0 12px 0; font-size: 15px; color: #cbd5e1; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+  .kpi-val { font-size: 22px; font-weight: 700; margin: 4px 0; }
+  .sub { color: var(--muted); font-size: 12.5px; line-height: 1.5; }
+  .pos { color: var(--green); } .neg { color: var(--red); } .amb { color: var(--amber); } .blu { color: var(--blue); }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+  .pill-group { display: flex; flex-wrap: wrap; gap: 7px; align-items: center; }
+  input { background: #0f172a; color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 7px 10px; font-size: 13px; }
+  input:focus { outline: none; border-color: var(--blue); }
+  .alloc-bar { display: flex; height: 14px; border-radius: 99px; overflow: hidden; background: #1e293b; margin: 10px 0; }
+  .alloc-off { background: linear-gradient(90deg, #ef4444, #f59e0b); }
+  .alloc-def { background: linear-gradient(90deg, #06b6d4, #3b82f6); }
+  .alloc-cash { background: #334155; }
+  .pos-chip { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; background: var(--card2); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 7px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { padding: 9px 8px; border-bottom: 1px solid var(--border); text-align: right; white-space: nowrap; }
+  th:first-child, td:first-child, th:nth-child(2), td:nth-child(2), th:last-child, td:last-child { text-align: left; }
+  th { color: var(--muted); font-weight: 600; font-size: 12px; cursor: pointer; user-select: none; }
+  th:hover { color: #fff; }
+  tbody tr { cursor: pointer; transition: background 0.12s; }
+  tbody tr:hover { background: rgba(59, 130, 246, 0.10); }
+  tbody tr.def-row { background: rgba(6, 182, 212, 0.05); }
+  tbody tr.active-row { background: rgba(59, 130, 246, 0.18); }
+  .score-bar { width: 60px; height: 7px; background: #1e293b; border-radius: 99px; overflow: hidden; display: inline-block; vertical-align: middle; margin-right: 6px; }
+  .score-fill { height: 100%; border-radius: 99px; }
+  .tag { display: inline-block; font-size: 11px; padding: 2px 6px; border-radius: 4px; margin-right: 4px; background: #1e293b; color: #cbd5e1; border: 1px solid #334155; }
+  .tag.star { background: #422006; color: #fde68a; border-color: #a16207; }
+  .tag.def { background: #083344; color: #67e8f9; border-color: #0e7490; }
+  .tag.disc { background: #2e1065; color: #d8b4fe; border-color: #7e22ce; }
+  .tag.bull { background: #052e16; color: #86efac; border-color: #166534; }
+  .tag.warn { background: #450a0a; color: #fca5a5; border-color: #991b1b; }
+  .sector-box { background: var(--card2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; cursor: pointer; }
+  .sector-box:hover, .sector-box.active { border-color: var(--blue); }
+  .detail-panel { display: none; grid-template-columns: 1.5fr 1fr; gap: 16px; background: #0f172a; border: 1px solid #2563eb; border-radius: 10px; padding: 16px; }
+  .detail-panel.open { display: grid; }
+  @media (max-width: 900px) { .detail-panel.open { grid-template-columns: 1fr; } }
+  .factor-row { display: grid; grid-template-columns: 125px 1fr 48px; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 12.5px; }
+  .fbar { height: 8px; background: #1e293b; border-radius: 99px; overflow: hidden; }
+  .fbar-fill { height: 100%; background: linear-gradient(90deg, #3b82f6, #22c55e); border-radius: 99px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="title">
+    🔍 美股攻守兼备 · 全市场选股与动态配置系统
+    <span class="badge" id="verBadge">screener-v2.0.0</span>
+    <span class="badge safe">零杠杆 · 攻守平衡 · 直连 Alpaca 模拟盘</span>
+  </div>
+  <div class="controls">
+    <button id="refreshCuratedBtn" onclick="loadScreener(true, 'curated')">🔄 刷新核心攻守池(44只)</button>
+    <button class="emerald" id="refreshFullBtn" onclick="loadScreener(true, 'full_market')">🌐 全美股漏斗扫描</button>
+    <a class="btn secondary" href="/">← MU 2.0</a>
+  </div>
+</header>
+
+<main>
+  <!-- Offense + Defense Regime & Dynamic Portfolio Plan -->
+  <div class="grid-2">
+    <div class="card" id="regimeCard" style="border-left: 4px solid var(--amber);">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <span class="sub">🚦 市场攻守温度计（SPY/QQQ年线 + 进攻宽度）</span>
+        <span class="badge" id="regimeBadge">-</span>
+      </div>
+      <div class="kpi-val" id="regimeTitle" style="margin-top:8px;">正在评估市场环境...</div>
+      <div class="sub" id="regimeReason">-</div>
+      <div class="alloc-bar">
+        <div class="alloc-off" id="barOff" style="width:0%"></div>
+        <div class="alloc-def" id="barDef" style="width:0%"></div>
+        <div class="alloc-cash" id="barCash" style="width:100%"></div>
+      </div>
+      <div class="sub" id="allocLegend" style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px;">-</div>
+      <div class="sub" id="funnelInfo" style="margin-top:8px; color:#93c5fd;"></div>
+    </div>
+
+    <div class="card">
+      <h3>
+        <span>🎯 今日攻守动态目标组合（直连 Alpaca Paper 自动执行）</span>
+        <span class="sub" id="planMeta">输出至 data/screener/latest_allocation.json</span>
+      </h3>
+      <div id="portfolioPositions"></div>
+    </div>
+  </div>
+
+  <!-- 4 KPI Cards -->
+  <div class="grid-4">
+    <div class="card">
+      <div class="sub">进攻宽度（站上200日年线）</div>
+      <div class="kpi-val" id="kpiBreadth">-</div>
+      <div class="sub" id="kpiBull">全池多头排列: -</div>
+    </div>
+    <div class="card">
+      <div class="sub">基准锚 QQQ 60日动量</div>
+      <div class="kpi-val" id="kpiBench">-</div>
+      <div class="sub" id="kpiDate">最新收盘日: -</div>
+    </div>
+    <div class="card">
+      <div class="sub">当前策略筛选命中</div>
+      <div class="kpi-val pos" id="kpiMatched">-</div>
+      <div class="sub" id="kpiPresetDesc">-</div>
+    </div>
+    <div class="card">
+      <div class="sub">🌐 全市场/池外新秀 Top-3</div>
+      <div class="kpi-val amb" id="kpiOutside">-</div>
+      <div class="sub">可随时作为下一代动态轮动候选</div>
+    </div>
+  </div>
+
+  <!-- Sector Strength Strip -->
+  <div class="card">
+    <h3>
+      <span>🧭 攻守赛道强弱雷达（点击赛道一键过滤）</span>
+      <span class="sub">含进攻赛道 + 防御行业与现金牛蓝筹</span>
+    </h3>
+    <div class="grid-sectors" id="sectorGrid"></div>
+  </div>
+
+  <!-- Controls -->
+  <div class="card">
+    <div class="toolbar">
+      <div class="pill-group" id="presetPills">
+        <button class="pill active" data-preset="core_momentum" onclick="setPreset('core_momentum')">🔥 核心进攻动量</button>
+        <button class="pill" data-preset="defense_shield" onclick="setPreset('defense_shield')">🛡️ 防守避险盾牌</button>
+        <button class="pill" data-preset="breakout_52w" onclick="setPreset('breakout_52w')">🚀 52周新高主升浪</button>
+        <button class="pill" data-preset="market_discovery" onclick="setPreset('market_discovery')">🌐 全市场新黑马</button>
+        <button class="pill" data-preset="all" onclick="setPreset('all')">👀 全池透视</button>
+      </div>
+      <div class="pill-group">
+        <input id="searchInput" type="text" placeholder="搜索代码/赛道 (如 COST, 核电)..." oninput="renderTable()" style="width:195px;" />
+        <input id="addSymInput" type="text" placeholder="添加美股 (如 IONQ)" style="width:145px; text-transform:uppercase;" />
+        <button class="secondary" id="addSymBtn" onclick="addCustomTicker()">➕ 加入池中</button>
+      </div>
+    </div>
+    <div id="addMsg" class="sub" style="margin-top:6px;"></div>
+  </div>
+
+  <!-- Click-to-Inspect Detail Drawer -->
+  <div class="detail-panel" id="detailPanel">
+    <div>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <div id="detailTitle" style="font-size:17px; font-weight:700;">-</div>
+        <button class="secondary" style="padding:4px 10px; font-size:12px;" onclick="closeDetail()">✕ 关闭</button>
+      </div>
+      <div id="detailSub" class="sub" style="margin-bottom:10px;">-</div>
+      <svg id="sparkSvg" viewBox="0 0 640 200" style="width:100%; height:200px; background:#0b1220; border-radius:8px; border:1px solid var(--border);"></svg>
+      <div class="sub" style="margin-top:6px; display:flex; gap:14px;">
+        <span><span style="color:#38bdf8;">━</span> 收盘价</span>
+        <span><span style="color:#f59e0b;">━</span> MA20</span>
+        <span><span style="color:#a855f7;">━</span> MA50</span>
+      </div>
+    </div>
+    <div>
+      <div style="font-size:14px; font-weight:700; margin-bottom:10px; color:#cbd5e1;">📊 多因子得分拆解（满分100）</div>
+      <div id="factorBars"></div>
+      <div id="detailRisk" class="sub" style="margin-top:12px; padding:10px; background:#131a26; border-radius:6px; border:1px solid var(--border); line-height:1.7;"></div>
+    </div>
+  </div>
+
+  <!-- Main Ranking Table -->
+  <div class="card">
+    <h3>
+      <span>📋 美股多因子选股排行榜（点击任意行查看60日走势与因子拆解）</span>
+      <span class="sub" id="tableCountHint">-</span>
+    </h3>
+    <div style="overflow-x:auto;">
+      <table>
+        <thead>
+          <tr>
+            <th onclick="sortBy('rank')">#</th>
+            <th onclick="sortBy('symbol')">股票 / 赛道</th>
+            <th onclick="sortBy('composite_score')">综合分</th>
+            <th onclick="sortBy('close')">收盘价</th>
+            <th onclick="sortBy('chg1d')">日涨跌</th>
+            <th onclick="sortBy('mom20')">20日动量</th>
+            <th onclick="sortBy('mom60')">60日动量</th>
+            <th onclick="sortBy('rs60_vs_qqq')">超额RS60</th>
+            <th onclick="sortBy('dvol21')">DVol21</th>
+            <th onclick="sortBy('drawdown_52w')">距52周高点</th>
+            <th onclick="sortBy('rsi14')">RSI14</th>
+            <th onclick="sortBy('stop_price')">2.5ATR止损</th>
+            <th>标签 & 建议</th>
+          </tr>
+        </thead>
+        <tbody id="stockTbody"></tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<script>
+let STATE = {
+  preset: 'core_momentum',
+  sector: 'ALL',
+  scanMode: 'curated',
+  sortKey: 'composite_score',
+  sortAsc: false,
+  payload: null,
+  selectedSymbol: null,
+};
+
+function fmtPct(v, signed = true) {
+  if (v === null || v === undefined || Number.isNaN(v)) return '-';
+  const p = (v * 100).toFixed(1) + '%';
+  return signed && v > 0 ? '+' + p : p;
+}
+function fmtNum(v, d = 2) {
+  if (v === null || v === undefined || Number.isNaN(v)) return '-';
+  return Number(v).toFixed(d);
+}
+
+async function loadScreener(refresh = false, mode = null) {
+  if (mode) STATE.scanMode = mode;
+  const b1 = document.getElementById('refreshCuratedBtn');
+  const b2 = document.getElementById('refreshFullBtn');
+  b1.disabled = b2.disabled = true;
+  if (STATE.scanMode === 'full_market') {
+    b2.textContent = '⏳ 正在全美股初筛 + 并发精算 (~15秒)...';
+  } else if (refresh) {
+    b1.textContent = '⏳ 刷新核心攻守池...';
+  }
+  try {
+    const url = `/api/screener?preset=${encodeURIComponent(STATE.preset)}&sector=${encodeURIComponent(STATE.sector)}&scan_mode=${encodeURIComponent(STATE.scanMode)}&refresh=${refresh ? 1 : 0}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || '加载失败');
+    STATE.payload = data;
+    renderAll();
+  } catch (err) {
+    document.getElementById('regimeTitle').textContent = '加载失败：' + err.message;
+  } finally {
+    b1.disabled = b2.disabled = false;
+    b1.textContent = '🔄 刷新核心攻守池(44只)';
+    b2.textContent = '🌐 全美股漏斗扫描';
+  }
+}
+
+function setPreset(p) {
+  STATE.preset = p;
+  document.querySelectorAll('#presetPills .pill').forEach(el => {
+    el.classList.toggle('active', el.dataset.preset === p);
+  });
+  if (p === 'market_discovery' && STATE.scanMode !== 'full_market') {
+    loadScreener(false, 'full_market');
+  } else {
+    loadScreener(false);
+  }
+}
+
+function toggleSector(sec) {
+  STATE.sector = (STATE.sector === sec) ? 'ALL' : sec;
+  loadScreener(false);
+}
+
+function sortBy(key) {
+  if (STATE.sortKey === key) STATE.sortAsc = !STATE.sortAsc;
+  else {
+    STATE.sortKey = key;
+    STATE.sortAsc = (key === 'rank' || key === 'symbol' || key === 'dvol21');
+  }
+  renderTable();
+}
+
+function renderAll() {
+  const d = STATE.payload;
+  if (!d) return;
+  document.getElementById('verBadge').textContent = d.version;
+
+  const reg = d.market_regime;
+  const plan = d.portfolio_plan;
+  const mb = d.market_breadth;
+  const b = d.benchmark;
+
+  // Regime card
+  const rBadge = document.getElementById('regimeBadge');
+  rBadge.textContent = `${reg.regime} · ${reg.label}`;
+  rBadge.className = 'badge ' + (reg.regime === 'BULL_OFFENSE' ? 'regime-bull' : reg.regime === 'BEAR_DEFENSE' ? 'regime-bear' : 'regime-neutral');
+  document.getElementById('regimeCard').style.borderLeftColor =
+    reg.regime === 'BULL_OFFENSE' ? 'var(--green)' : reg.regime === 'BEAR_DEFENSE' ? 'var(--red)' : 'var(--amber)';
+  document.getElementById('regimeTitle').textContent =
+    `进攻 ${(plan.offense_weight*100).toFixed(0)}%  +  防守 ${(plan.defense_weight*100).toFixed(0)}%  +  现金 ${(plan.cash_weight*100).toFixed(0)}%`;
+  document.getElementById('regimeReason').textContent = reg.reason;
+
+  document.getElementById('barOff').style.width = (plan.offense_weight * 100) + '%';
+  document.getElementById('barDef').style.width = (plan.defense_weight * 100) + '%';
+  document.getElementById('barCash').style.width = (plan.cash_weight * 100) + '%';
+  document.getElementById('allocLegend').innerHTML =
+    `<span>🔥 进攻目标 ${(plan.offense_weight*100).toFixed(1)}%</span>` +
+    `<span>🛡️ 防守蓝筹/ETF ${(plan.defense_weight*100).toFixed(1)}%</span>` +
+    `<span>💵 纯现金 ${(plan.cash_weight*100).toFixed(1)}%</span>`;
+
+  document.getElementById('funnelInfo').textContent = d.funnel && d.funnel.enabled
+    ? `🌐 已启用全美股漏斗：覆盖 ${d.funnel.us_market_total} 只美股 → 筛选出 ${d.funnel.funnel_passed} 只高流动正股 + 核心攻守池 = 共深度扫描 ${mb.total} 只`
+    : `当前为极速核心攻守池模式（${mb.total} 只），点击右上角「🌐 全美股漏斗扫描」可全市场挖黑马`;
+
+  // Dynamic portfolio positions
+  const posHtml = (plan.positions || []).map(p => {
+    const isOff = p.sleeve === 'OFFENSE';
+    return `
+      <div class="pos-chip" onclick="openDetail('${p.symbol}')" style="cursor:pointer;">
+        <div>
+          <span class="tag ${isOff ? 'star' : 'def'}">${isOff ? '🔥 进攻' : '🛡️ 防守'}</span>
+          <strong>${p.symbol}</strong> ${p.discovered ? '<span class="tag disc">🌐全市场</span>' : ''}
+          <span class="sub" style="margin-left:4px;">${p.sector} · 止损 $${fmtNum(p.stop_price)}</span>
+        </div>
+        <div style="text-align:right;">
+          <strong style="font-size:15px; color:${isOff ? '#fde68a' : '#67e8f9'};">${(p.weight*100).toFixed(1)}%</strong>
+          <span class="sub" style="margin-left:6px;">${p.score}分</span>
+        </div>
+      </div>`;
+  }).join('') + (plan.cash_weight > 0.005 ? `
+      <div class="pos-chip">
+        <div><span class="tag">💵 现金防守</span> <strong>CASH</strong> <span class="sub">纯现金防守 / 机动仓位</span></div>
+        <div><strong>${(plan.cash_weight*100).toFixed(1)}%</strong></div>
+      </div>` : '');
+  document.getElementById('portfolioPositions').innerHTML = posHtml;
+
+  // KPIs
+  document.getElementById('kpiBreadth').textContent = `${reg.offense_above_ma200} / ${reg.offense_total} (${(reg.offense_breadth*100).toFixed(0)}%)`;
+  document.getElementById('kpiBreadth').className = 'kpi-val ' + (reg.offense_breadth >= 0.5 ? 'pos' : reg.offense_breadth >= 0.25 ? 'amb' : 'neg');
+  document.getElementById('kpiBull').textContent = `全池均线多头排列: ${mb.ma_bull_aligned}/${mb.total} 只`;
+
+  document.getElementById('kpiBench').textContent = fmtPct(b.mom60);
+  document.getElementById('kpiBench').className = 'kpi-val ' + ((b.mom60 || 0) >= 0 ? 'pos' : 'neg');
+  document.getElementById('kpiDate').textContent = `最新收盘日: ${d.signal_date} · QQQ $${fmtNum(b.close)}`;
+
+  document.getElementById('kpiMatched').textContent = `${mb.matched_count} 只`;
+  document.getElementById('kpiPresetDesc').textContent = d.presets[d.preset]?.desc || '';
+
+  const topDisc = (d.discovered_top5 && d.discovered_top5.length) ? d.discovered_top5 : d.outside_rotation_top5;
+  document.getElementById('kpiOutside').textContent = (topDisc || []).slice(0, 3).map(x => x.symbol).join(' · ') || '暂无';
+
+  // Sector strip
+  document.getElementById('sectorGrid').innerHTML = d.sector_summary.map(s => {
+    const active = STATE.sector === s.sector ? 'active' : '';
+    const mCls = (s.avg_mom60 || 0) >= 0 ? 'pos' : 'neg';
+    return `
+      <div class="sector-box ${active}" onclick="toggleSector('${s.sector}')">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <strong style="font-size:12.5px;">${s.sector}</strong>
+          <span class="badge">${s.avg_score}</span>
+        </div>
+        <div class="sub" style="margin-top:4px;">60日 <span class="${mCls}">${fmtPct(s.avg_mom60)}</span> · 年线上 ${s.above_ma200}/${s.count}</div>
+        <div class="sub">领涨: <strong style="color:#e2e8f0;">${s.leader}</strong></div>
+      </div>`;
+  }).join('');
+
+  renderTable();
+}
+
+function renderTable() {
+  const d = STATE.payload;
+  if (!d) return;
+  const q = (document.getElementById('searchInput').value || '').trim().toLowerCase();
+  let rows = d.stocks.filter(r => {
+    if (!q) return true;
+    return r.symbol.toLowerCase().includes(q)
+      || (r.sector || '').toLowerCase().includes(q)
+      || (r.theme || '').toLowerCase().includes(q);
+  });
+
+  const k = STATE.sortKey;
+  rows.sort((a, b) => {
+    let va = a[k], vb = b[k];
+    if (va === null || va === undefined) va = -999999;
+    if (vb === null || vb === undefined) vb = -999999;
+    if (typeof va === 'string') return STATE.sortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
+    return STATE.sortAsc ? va - vb : vb - va;
+  });
+
+  document.getElementById('tableCountHint').textContent =
+    `显示 ${rows.length} 只 · 赛道筛选: ${STATE.sector === 'ALL' ? '全部' : STATE.sector}（点击表头排序）`;
+
+  document.getElementById('stockTbody').innerHTML = rows.map(r => {
+    const gCls = r.grade.toLowerCase() + '-grade';
+    const barColor = r.composite_score >= 75 ? '#22c55e' : r.composite_score >= 55 ? '#3b82f6' : '#ef4444';
+    const rowCls = (r.symbol === STATE.selectedSymbol ? 'active-row ' : '') + (r.role === 'defense' ? 'def-row' : '');
+    const tagsHtml = (r.tags || []).map(t => {
+      const cls = t.includes('防守') ? 'def' : t.includes('全市场') ? 'disc' : t.includes('轮动') ? 'star' : (t.includes('多头') || t.includes('新高') ? 'bull' : (t.includes('跌破') || t.includes('过热') ? 'warn' : ''));
+      return `<span class="tag ${cls}">${t}</span>`;
+    }).join('');
+    const delBtn = r.custom ? `<button class="danger-mini" onclick="event.stopPropagation(); removeCustomTicker('${r.symbol}')">删</button>` : '';
+    return `
+      <tr class="${rowCls}" onclick="openDetail('${r.symbol}')">
+        <td>${r.rank}</td>
+        <td>
+          <strong>${r.symbol}</strong> ${delBtn}
+          <span class="badge ${gCls}" style="margin-left:4px;">${r.grade}</span>
+          <div class="sub" style="font-size:11.5px;">${r.sector} · ${r.theme}</div>
+        </td>
+        <td>
+          <span class="score-bar"><span class="score-fill" style="width:${Math.min(100, r.composite_score)}%; background:${barColor};"></span></span>
+          <strong>${fmtNum(r.composite_score, 1)}</strong>
+        </td>
+        <td>$${fmtNum(r.close, 2)}</td>
+        <td class="${(r.chg1d || 0) >= 0 ? 'pos' : 'neg'}">${fmtPct(r.chg1d)}</td>
+        <td class="${(r.mom20 || 0) >= 0 ? 'pos' : 'neg'}">${fmtPct(r.mom20)}</td>
+        <td class="${(r.mom60 || 0) >= 0 ? 'pos' : 'neg'}"><strong>${fmtPct(r.mom60)}</strong></td>
+        <td class="${(r.rs60_vs_qqq || 0) >= 0 ? 'pos' : 'neg'}">${fmtPct(r.rs60_vs_qqq)}</td>
+        <td class="${(r.dvol21 || 0) > 0.60 ? 'amb' : ''}">${fmtPct(r.dvol21, false)}</td>
+        <td class="${(r.drawdown_52w || -1) >= -0.08 ? 'pos' : ''}">${fmtPct(r.drawdown_52w)}</td>
+        <td class="${(r.rsi14 || 0) > 80 ? 'neg' : ''}">${fmtNum(r.rsi14, 1)}</td>
+        <td>$${fmtNum(r.stop_price, 2)}</td>
+        <td>${tagsHtml}<span class="sub">${r.action_hint}</span></td>
+      </tr>`;
+  }).join('');
+}
+
+function openDetail(sym) {
+  const d = STATE.payload;
+  if (!d) return;
+  const r = d.stocks.find(x => x.symbol === sym);
+  if (!r) return;
+  STATE.selectedSymbol = sym;
+  renderTable();
+
+  const panel = document.getElementById('detailPanel');
+  panel.classList.add('open');
+  document.getElementById('detailTitle').textContent = `${r.symbol} · ${r.sector} (${r.grade}级 · ${r.composite_score}分)`;
+  document.getElementById('detailSub').textContent = `${r.theme} | 最新收盘 $${fmtNum(r.close)} (${r.date}) | MA200: $${fmtNum(r.sma200)} (${fmtPct(r.dist_ma200)})`;
+
+  const fb = r.factor_breakdown || {};
+  const isDef = r.role === 'defense';
+  const items = isDef ? [
+    ['风险调整动量(35)', fb.risk_adj_mom || 0, 35],
+    ['极低波动防御(25)', fb.mom20 || 0, 25],
+    ['相对大盘韧性(20)', fb.rs60_vs_qqq || 0, 20],
+    ['逼近52周新高(10)', fb.near_52w_high || 0, 10],
+    ['均线多头健康(10)', fb.trend_vol || 0, 10],
+  ] : [
+    ['风险调整动量(35)', fb.risk_adj_mom || 0, 35],
+    ['跑赢QQQ超额(25)', fb.rs60_vs_qqq || 0, 25],
+    ['20日短线加速(15)', fb.mom20 || 0, 15],
+    ['逼近52周新高(15)', fb.near_52w_high || 0, 15],
+    ['多头排列与量能(10)', fb.trend_vol || 0, 10],
+  ];
+  document.getElementById('factorBars').innerHTML = items.map(([name, val, maxv]) => `
+    <div class="factor-row">
+      <span class="sub">${name}</span>
+      <div class="fbar"><div class="fbar-fill" style="width:${Math.min(100, (val/maxv)*100)}%"></div></div>
+      <strong style="text-align:right;">${fmtNum(val, 1)}</strong>
+    </div>`).join('');
+
+  document.getElementById('detailRisk').innerHTML =
+    `<strong>🛡️ 风控体检：</strong><br>` +
+    `• 下行波动率 DVol21：<strong>${fmtPct(r.dvol21, false)}</strong> → 仓位折算上限 <strong>${Math.round((r.dvol_cap || 0)*100)}%</strong><br>` +
+    `• 参考止损位 (2.5×ATR14)：<strong>$${fmtNum(r.stop_price)}</strong>（距现价 -${fmtNum((r.stop_dist_pct || 0)*100, 1)}%）<br>` +
+    `• 5日/20日量比：<strong>${fmtNum(r.vol_ratio, 2)}x</strong> · RSI(14)：<strong>${fmtNum(r.rsi14, 1)}</strong>`;
+  drawSparkline(r.sparkline);
+  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function closeDetail() {
+  STATE.selectedSymbol = null;
+  document.getElementById('detailPanel').classList.remove('open');
+  renderTable();
+}
+
+function drawSparkline(sp) {
+  const svg = document.getElementById('sparkSvg');
+  if (!sp || !sp.close || sp.close.length < 2) { svg.innerHTML = ''; return; }
+  const W = 640, H = 200, pad = 18;
+  const allVals = [...sp.close, ...sp.ma20.filter(v => v !== null), ...sp.ma50.filter(v => v !== null)];
+  const minV = Math.min(...allVals) * 0.985, maxV = Math.max(...allVals) * 1.015;
+  const n = sp.close.length;
+  const sx = i => pad + (i / (n - 1)) * (W - 2 * pad);
+  const sy = v => H - pad - ((v - minV) / Math.max(1e-6, maxV - minV)) * (H - 2 * pad);
+  const pathFor = arr => arr.map((v, i) => v === null ? '' : (i === 0 || arr[i-1] === null ? 'M' : 'L') + sx(i).toFixed(1) + ',' + sy(v).toFixed(1)).join(' ');
+  svg.innerHTML = `
+    <line x1="${pad}" y1="${pad}" x2="${W-pad}" y2="${pad}" stroke="#1e293b" stroke-dasharray="3,3"/>
+    <line x1="${pad}" y1="${H/2}" x2="${W-pad}" y2="${H/2}" stroke="#1e293b" stroke-dasharray="3,3"/>
+    <line x1="${pad}" y1="${H-pad}" x2="${W-pad}" y2="${H-pad}" stroke="#1e293b" stroke-dasharray="3,3"/>
+    <path d="${pathFor(sp.ma50)}" fill="none" stroke="#a855f7" stroke-width="1.5" opacity="0.85"/>
+    <path d="${pathFor(sp.ma20)}" fill="none" stroke="#f59e0b" stroke-width="1.5" opacity="0.9"/>
+    <path d="${pathFor(sp.close)}" fill="none" stroke="#38bdf8" stroke-width="2.2"/>
+    <text x="${pad}" y="14" fill="#94a3b8" font-size="11">$${maxV.toFixed(1)}</text>
+    <text x="${pad}" y="${H-4}" fill="#94a3b8" font-size="11">$${minV.toFixed(1)} · ${sp.dates[0]} → ${sp.dates[n-1]}</text>`;
+}
+
+async function addCustomTicker() {
+  const inp = document.getElementById('addSymInput'), msg = document.getElementById('addMsg');
+  const sym = (inp.value || '').trim().toUpperCase();
+  if (!sym) return;
+  const btn = document.getElementById('addSymBtn');
+  btn.disabled = true;
+  msg.textContent = `正在验证并拉取 ${sym} 历史行情...`;
+  try {
+    const res = await fetch('/api/screener/symbol', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'add', symbol: sym }),
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || '添加失败');
+    msg.textContent = data.already_exists ? data.message : `✅ 已加入 ${sym}（${data.rows} 交易日）`;
+    inp.value = '';
+    await loadScreener(false);
+  } catch (err) { msg.textContent = '❌ ' + err.message; }
+  finally { btn.disabled = false; }
+}
+
+async function removeCustomTicker(sym) {
+  const res = await fetch('/api/screener/symbol', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'remove', symbol: sym }),
+  });
+  if ((await res.json()).ok) loadScreener(false);
+}
+
+loadScreener(false, 'curated');
+</script>
+</body>
+</html>
