@@ -61,6 +61,15 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self.wfile.write(html)
             return
 
+        if parsed.path in ("/trading", "/trading.html"):
+            html = (STATIC_DIR / "trading.html").read_bytes()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(html)))
+            self.end_headers()
+            self.wfile.write(html)
+            return
+
         if parsed.path == "/api/screener":
             qs = urllib.parse.parse_qs(parsed.query)
             preset = qs.get("preset", ["core_momentum"])[0]

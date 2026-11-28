@@ -89,94 +89,11 @@
   <div class="controls">
     <button id="refreshCuratedBtn" onclick="loadScreener(true, 'curated')">🔄 刷新核心攻守池(44只)</button>
     <button class="emerald" id="refreshFullBtn" onclick="loadScreener(true, 'full_market')">🌐 全美股漏斗扫描</button>
+    <a class="btn" href="/trading" style="background:#0f766e; border:1px solid #14b8a6;">💼 模拟盘实盘监控 →</a>
   </div>
 </header>
 
 <main>
-  <!-- Alpaca Paper Trading Live Portfolio & Performance Panel -->
-  <div class="card" style="border-left: 4px solid var(--green); background: linear-gradient(180deg, #111c2d 0%, #131a26 100%);">
-    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:10px;">
-      <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-        <span style="font-size:15px; font-weight:700; color:#f8fafc;">💼 Alpaca 模拟盘实盘持仓 · 收益率 · 买卖账本</span>
-        <span class="badge safe" id="alpacaAcctBadge">PAPER ONLY · PA33PUKOC</span>
-        <span class="sub" id="alpacaSyncMeta">加载中...</span>
-      </div>
-      <div style="display:flex; gap:8px; flex-wrap:wrap;">
-        <button class="secondary" id="refreshAlpacaBtn" onclick="loadAlpacaPortfolio(true)">🔄 刷新模拟盘</button>
-        <a class="btn secondary" href="https://app.alpaca.markets/paper/dashboard/overview" target="_blank" rel="noopener">↗ 打开 Alpaca 官网盘面</a>
-      </div>
-    </div>
-
-    <div class="grid-4" style="margin-bottom:12px;">
-      <div style="background:#0f172a; border:1px solid var(--border); border-radius:8px; padding:10px 12px;">
-        <div class="sub">模拟盘总资产 (Equity)</div>
-        <div class="kpi-val" id="alpacaEquity">$100,000.00</div>
-        <div class="sub" id="alpacaEquitySub">初始本金 $100,000.00</div>
-      </div>
-      <div style="background:#0f172a; border:1px solid var(--border); border-radius:8px; padding:10px 12px;">
-        <div class="sub">累计收益率 / 总盈亏</div>
-        <div class="kpi-val" id="alpacaTotalRet">0.00%</div>
-        <div class="sub" id="alpacaTotalPl">$0.00</div>
-      </div>
-      <div style="background:#0f172a; border:1px solid var(--border); border-radius:8px; padding:10px 12px;">
-        <div class="sub">今日盈亏 (Daily P/L)</div>
-        <div class="kpi-val" id="alpacaDailyPl">$0.00</div>
-        <div class="sub" id="alpacaDailyPct">0.00%</div>
-      </div>
-      <div style="background:#0f172a; border:1px solid var(--border); border-radius:8px; padding:10px 12px;">
-        <div class="sub">持仓市值 / 可用现金</div>
-        <div class="kpi-val" id="alpacaCash">$100,000.00</div>
-        <div class="sub" id="alpacaPosCount">持仓 0 只 · 挂单 0 笔</div>
-      </div>
-    </div>
-
-    <div class="grid-2" style="margin-bottom:0;">
-      <div>
-        <div style="font-size:13px; font-weight:700; color:#cbd5e1; margin-bottom:6px;" id="alpacaHoldingsTitle">📦 当前持仓与个股盈亏</div>
-        <div style="overflow-x:auto; max-height:240px; overflow-y:auto; border:1px solid var(--border); border-radius:8px;">
-          <table>
-            <thead>
-              <tr>
-                <th>代码</th>
-                <th>股数/金额</th>
-                <th>成本 / 现价</th>
-                <th>市值 / 占比</th>
-                <th>盈亏 / 状态</th>
-              </tr>
-            </thead>
-            <tbody id="alpacaHoldingsBody">
-              <tr><td colspan="5" class="sub">加载中...</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-      <div>
-        <div style="font-size:13px; font-weight:700; color:#cbd5e1; margin-bottom:6px; display:flex; justify-content:space-between;">
-          <span>📈 净值收益率曲线 & 最近自动买卖记录</span>
-          <span class="sub" id="alpacaCurveMeta"></span>
-        </div>
-        <svg id="alpacaCurveSvg" viewBox="0 0 560 110" style="width:100%; height:110px; background:#0b1220; border-radius:8px; border:1px solid var(--border); margin-bottom:8px;"></svg>
-        <div style="overflow-x:auto; max-height:130px; overflow-y:auto; border:1px solid var(--border); border-radius:8px;">
-          <table>
-            <thead>
-              <tr>
-                <th>时间</th>
-                <th>方向</th>
-                <th>代码</th>
-                <th>金额</th>
-                <th>目标权重</th>
-                <th>状态</th>
-              </tr>
-            </thead>
-            <tbody id="alpacaOrdersBody">
-              <tr><td colspan="6" class="sub">加载中...</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  </div>
-
   <!-- Offense + Defense Regime & Dynamic Portfolio Plan -->
   <div class="grid-2">
     <div class="card" id="regimeCard" style="border-left: 4px solid var(--amber);">
@@ -198,7 +115,7 @@
     <div class="card">
       <h3>
         <span>🎯 今日攻守动态目标组合（直连 Alpaca Paper 自动执行）</span>
-        <span class="sub" id="planMeta">输出至 data/screener/latest_allocation.json</span>
+        <a href="/trading" style="color:#38bdf8; text-decoration:none; font-size:12px; font-weight:600;">查看实盘持仓与收益 →</a>
       </h3>
       <div id="portfolioPositions"></div>
     </div>
@@ -627,163 +544,16 @@ async function removeCustomTicker(sym) {
   if ((await res.json()).ok) loadScreener(false);
 }
 
-function fmtUsd(v, signed = false) {
-  if (v === null || v === undefined || Number.isNaN(v)) return '-';
-  const n = Number(v);
-  const absStr = Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  if (signed) return (n > 0 ? '+$' : n < 0 ? '-$' : '$') + absStr;
-  return (n < 0 ? '-$' : '$') + absStr;
+const _initSym = new URLSearchParams(window.location.search).get('symbol');
+if (_initSym) {
+  STATE.preset = 'all';
+  document.querySelectorAll('#presetPills .pill').forEach(el => {
+    el.classList.toggle('active', el.dataset.preset === 'all');
+  });
 }
-
-async function loadAlpacaPortfolio(tryLive = false) {
-  const btn = document.getElementById('refreshAlpacaBtn');
-  if (btn) { btn.disabled = true; btn.textContent = '⏳ 刷新中...'; }
-  try {
-    const res = await fetch(`/api/alpaca/portfolio?live=${tryLive ? 1 : 0}`);
-    const data = await res.json();
-    if (!data.ok) throw new Error(data.error || '加载失败');
-    renderAlpacaPortfolio(data);
-  } catch (err) {
-    document.getElementById('alpacaSyncMeta').textContent = '模拟盘加载异常：' + err.message;
-  } finally {
-    if (btn) { btn.disabled = false; btn.textContent = '🔄 刷新模拟盘'; }
-  }
-}
-
-function renderAlpacaPortfolio(d) {
-  const snap = d.snapshot;
-  const orders = d.orders || [];
-  const curve = d.equity_curve || [];
-  const initEq = d.initial_equity || 100000;
-
-  if (snap) {
-    const acctNo = snap.account_number || 'PA33PUKOC';
-    document.getElementById('alpacaAcctBadge').textContent = `PAPER ONLY · ${acctNo}`;
-    const srcTxt = d.source === 'live_alpaca_paper' ? '实时直连 Alpaca' : '云端最新快照';
-    document.getElementById('alpacaSyncMeta').textContent = `${srcTxt} · 更新于 ${snap.synced_at || '-'}`;
-
-    const hasPrev = Number(snap.last_equity || 0) > 0;
-    const dailyPl = hasPrev ? Number(snap.daily_pl || 0) : 0;
-    const dailyPct = hasPrev ? Number(snap.daily_plpc || 0) : 0;
-
-    document.getElementById('alpacaEquity').textContent = fmtUsd(snap.equity);
-    document.getElementById('alpacaEquitySub').textContent = hasPrev
-      ? `初始本金 ${fmtUsd(initEq)} · 昨日 ${fmtUsd(snap.last_equity)}`
-      : `初始本金 ${fmtUsd(initEq)} · 首次建仓待开盘成交`;
-
-    const retEl = document.getElementById('alpacaTotalRet');
-    retEl.textContent = fmtPct(snap.total_return_pct);
-    retEl.className = 'kpi-val ' + ((snap.total_return_usd || 0) >= 0 ? 'pos' : 'neg');
-    document.getElementById('alpacaTotalPl').textContent = fmtUsd(snap.total_return_usd, true);
-
-    const dayEl = document.getElementById('alpacaDailyPl');
-    dayEl.textContent = fmtUsd(dailyPl, true);
-    dayEl.className = 'kpi-val ' + (dailyPl >= 0 ? 'pos' : 'neg');
-    document.getElementById('alpacaDailyPct').textContent = fmtPct(dailyPct);
-
-    document.getElementById('alpacaCash').textContent = fmtUsd(snap.cash);
-    const invPct = snap.equity > 0 ? ((snap.invested_value || 0) / snap.equity * 100).toFixed(1) : '0.0';
-    const posList = snap.positions || [];
-    const openOrders = snap.open_orders || [];
-    document.getElementById('alpacaPosCount').textContent = `持仓 ${posList.length} 只 (${invPct}%) · 挂单 ${openOrders.length} 笔`;
-
-    if (posList.length > 0) {
-      document.getElementById('alpacaHoldingsTitle').textContent = `📦 当前实际持仓 (${posList.length} 只)`;
-      document.getElementById('alpacaHoldingsBody').innerHTML = posList.map(p => {
-        const plCls = (p.unrealized_pl || 0) >= 0 ? 'pos' : 'neg';
-        return `
-          <tr onclick="openDetail('${p.symbol}')">
-            <td><strong>${p.symbol}</strong></td>
-            <td>${fmtNum(p.qty, 3)} 股</td>
-            <td>$${fmtNum(p.avg_entry_price)} → <strong>$${fmtNum(p.current_price)}</strong></td>
-            <td>${fmtUsd(p.market_value)} <span class="sub">(${(p.weight*100).toFixed(1)}%)</span></td>
-            <td class="${plCls}"><strong>${fmtUsd(p.unrealized_pl, true)}</strong> (${fmtPct(p.unrealized_plpc)})</td>
-          </tr>`;
-      }).join('');
-    } else if (openOrders.length > 0) {
-      document.getElementById('alpacaHoldingsTitle').textContent = `⏳ 待美股开盘成交挂单 (${openOrders.length} 笔)`;
-      document.getElementById('alpacaHoldingsBody').innerHTML = openOrders.map(o => `
-        <tr onclick="openDetail('${o.symbol}')">
-          <td><strong>${o.symbol}</strong></td>
-          <td>${o.notional ? fmtUsd(o.notional) : (fmtNum(o.qty, 3) + ' 股')}</td>
-          <td>市价单 (开盘成交)</td>
-          <td><span class="tag ${o.side === 'BUY' ? 'bull' : 'warn'}">${o.side}</span></td>
-          <td><span class="tag star">${o.status}</span></td>
-        </tr>`).join('');
-    } else {
-      document.getElementById('alpacaHoldingsTitle').textContent = '📦 当前持仓（100% 现金空仓）';
-      document.getElementById('alpacaHoldingsBody').innerHTML = '<tr><td colspan="5" class="sub">当前无持仓、无挂单</td></tr>';
-    }
-  } else {
-    document.getElementById('alpacaSyncMeta').textContent =
-      '等待云端下次运行写入实时净值快照（下方已显示云端最新下单账本）';
-    const latestOrders = orders.filter(o => o.version === 'screener-v2.0.0').slice(0, 10);
-    const totalSub = latestOrders.reduce((s, o) => s + Number(o.notional_usd || 0), 0);
-    document.getElementById('alpacaCash').textContent = fmtUsd(Math.max(0, initEq - totalSub));
-    document.getElementById('alpacaPosCount').textContent = `最近选股下单 ${latestOrders.length} 笔 · 等待美股开盘成交`;
-    document.getElementById('alpacaHoldingsTitle').textContent = `⏳ 最近云端已提交买单（待美股开盘成交 · ${latestOrders.length} 笔）`;
-    document.getElementById('alpacaHoldingsBody').innerHTML = latestOrders.length
-      ? latestOrders.map(o => `
-          <tr onclick="openDetail('${o.symbol}')">
-            <td><strong>${o.symbol}</strong></td>
-            <td>${fmtUsd(o.notional_usd)}</td>
-            <td>T+1 开盘市价</td>
-            <td>目标 ${(Number(o.target_weight || 0)*100).toFixed(1)}%</td>
-            <td><span class="tag bull">${o.side} · ${o.status}</span></td>
-          </tr>`).join('')
-      : '<tr><td colspan="5" class="sub">暂无下单记录</td></tr>';
-  }
-
-  // Orders ledger table
-  document.getElementById('alpacaOrdersBody').innerHTML = orders.length
-    ? orders.slice(0, 20).map(o => `
-        <tr>
-          <td class="sub">${String(o.recorded_at || '').replace('T', ' ').slice(5, 16)}</td>
-          <td><span class="tag ${o.side === 'BUY' ? 'bull' : 'warn'}">${o.side}</span></td>
-          <td><strong>${o.symbol}</strong></td>
-          <td>${fmtUsd(o.notional_usd)}</td>
-          <td>${(Number(o.target_weight || 0)*100).toFixed(1)}%</td>
-          <td class="${o.ok ? 'pos' : 'neg'}">${o.status}</td>
-        </tr>`).join('')
-    : '<tr><td colspan="6" class="sub">暂无历史成交记录</td></tr>';
-
-  // Equity curve SVG
-  drawAlpacaCurve(curve, initEq);
-}
-
-function drawAlpacaCurve(curve, initEq) {
-  const svg = document.getElementById('alpacaCurveSvg');
-  const meta = document.getElementById('alpacaCurveMeta');
-  const W = 560, H = 110, pad = 16;
-  if (!curve || curve.length === 0) {
-    meta.textContent = '基准 $100,000（首日开盘成交后自动绘制）';
-    svg.innerHTML = `
-      <line x1="${pad}" y1="${H/2}" x2="${W-pad}" y2="${H/2}" stroke="#334155" stroke-dasharray="4,4"/>
-      <circle cx="${pad + 8}" cy="${H/2}" r="4" fill="#22c55e"/>
-      <text x="${pad + 18}" y="${H/2 + 4}" fill="#94a3b8" font-size="11.5">起始基准 $100,000.00 (0.00%) · 下次云端运行自动记录每日净值</text>`;
-    return;
-  }
-  const vals = curve.map(x => Number(x.equity || initEq));
-  const minV = Math.min(initEq, ...vals) * 0.995;
-  const maxV = Math.max(initEq, ...vals) * 1.005;
-  const n = vals.length;
-  const sx = i => n === 1 ? W / 2 : pad + (i / (n - 1)) * (W - 2 * pad);
-  const sy = v => H - pad - ((v - minV) / Math.max(1e-6, maxV - minV)) * (H - 2 * pad);
-  const lastV = vals[n - 1];
-  const color = lastV >= initEq ? '#22c55e' : '#ef4444';
-  const baseY = sy(initEq).toFixed(1);
-  const pts = vals.map((v, i) => `${i === 0 ? 'M' : 'L'}${sx(i).toFixed(1)},${sy(v).toFixed(1)}`).join(' ');
-  meta.textContent = `${curve[0].date} → ${curve[n - 1].date} (${n} 天)`;
-  svg.innerHTML = `
-    <line x1="${pad}" y1="${baseY}" x2="${W-pad}" y2="${baseY}" stroke="#475569" stroke-dasharray="3,3"/>
-    ${n > 1 ? `<path d="${pts}" fill="none" stroke="${color}" stroke-width="2.2"/>` : ''}
-    <circle cx="${sx(n - 1).toFixed(1)}" cy="${sy(lastV).toFixed(1)}" r="4" fill="${color}"/>
-    <text x="${pad}" y="13" fill="#94a3b8" font-size="10.5">高 ${fmtUsd(maxV)}</text>
-    <text x="${pad}" y="${H - 3}" fill="#94a3b8" font-size="10.5">低 ${fmtUsd(minV)} · 基准 $100k</text>`;
-}
-
-loadAlpacaPortfolio(false);
-loadScreener(false, 'curated');
+loadScreener(false, _initSym ? 'full_market' : 'curated').then(() => {
+  if (_initSym) openDetail(_initSym.toUpperCase());
+});
 </script>
 </body>
 </html>

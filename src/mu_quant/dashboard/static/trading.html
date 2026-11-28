@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>美股模拟盘交易监控 · Alpaca Paper Trading</title>
+<style>
+  :root {
+    --bg: #0b0f17; --card: #131a26; --border: #232e42; --text: #e2e8f0; --muted: #94a3b8;
+    --green: #22c55e; --red: #ef4444; --amber: #f59e0b; --blue: #3b82f6; --cyan: #06b6d4;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; background: var(--bg); color: var(--text); font-size: 14px; }
+  header { padding: 14px 24px; border-bottom: 1px solid var(--border); display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; background: #0f1520; position: sticky; top: 0; z-index: 20; }
+  .title { font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .badge { font-size: 11px; padding: 3px 8px; border-radius: 999px; background: #1e293b; color: #93c5fd; border: 1px solid #334155; font-weight: 600; }
+  .badge.safe { background: #052e16; color: #86efac; border-color: #166534; }
+  .badge.regime-bull { background: #052e16; color: #4ade80; border-color: #16a34a; }
+  .badge.regime-neutral { background: #451a03; color: #fbbf24; border-color: #d97706; }
+  .badge.regime-bear { background: #450a0a; color: #f87171; border-color: #dc2626; }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  button, a.btn { background: #2563eb; color: #fff; border: none; border-radius: 6px; padding: 7px 13px; cursor: pointer; font-weight: 600; font-size: 13px; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; }
+  button:hover, a.btn:hover { background: #1d4ed8; }
+  button.secondary, a.btn.secondary { background: #1e293b; color: #cbd5e1; border: 1px solid #334155; }
+  button.secondary:hover, a.btn.secondary:hover { background: #334155; }
+  a.btn.primary-link { background: #0f766e; border: 1px solid #14b8a6; }
+  a.btn.primary-link:hover { background: #0d9488; }
+  button:disabled { opacity: 0.6; cursor: wait; }
+
+  main { padding: 18px 24px; max-width: 1480px; margin: 0 auto; }
+  .grid-4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; margin-bottom: 16px; }
+  .grid-2 { display: grid; grid-template-columns: 1.35fr 1fr; gap: 16px; margin-bottom: 16px; }
+  @media (max-width: 1024px) { .grid-2 { grid-template-columns: 1fr; } }
+
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; margin-bottom: 16px; }
+  .card h3 { margin: 0 0 12px 0; font-size: 15px; color: #f1f5f9; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+  .kpi-val { font-size: 26px; font-weight: 700; margin: 6px 0 4px; }
+  .sub { font-size: 12px; color: var(--muted); }
+  .pos { color: var(--green); } .neg { color: var(--red); } .amb { color: var(--amber); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { padding: 10px 10px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  th { color: var(--muted); font-weight: 600; background: #0f172a; position: sticky; top: 0; }
+  tbody tr:hover { background: #1a2436; }
+  tr.clickable { cursor: pointer; }
+
+  .tag { display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 11px; background: #1e293b; color: #cbd5e1; border: 1px solid #334155; font-weight: 600; }
+  .tag.buy { background: #052e16; color: #4ade80; border-color: #166534; }
+  .tag.sell { background: #450a0a; color: #fca5a5; border-color: #991b1b; }
+  .tag.off { background: #451a03; color: #fde68a; border-color: #b45309; }
+  .tag.def { background: #083344; color: #67e8f9; border-color: #155e75; }
+  .tag.pending { background: #172554; color: #93c5fd; border-color: #1d4ed8; }
+
+  .pill-group { display: flex; gap: 6px; flex-wrap: wrap; }
+  .pill { padding: 5px 11px; border-radius: 999px; font-size: 12px; background: #0f172a; border: 1px solid var(--border); color: var(--muted); cursor: pointer; font-weight: 600; }
+  .pill.active { background: #1d4ed8; border-color: #3b82f6; color: #fff; }
+  .sym-link { color: #38bdf8; text-decoration: none; font-weight: 700; }
+  .sym-link:hover { text-decoration: underline; }
+  .bar-bg { width: 80px; height: 7px; background: #1e293b; border-radius: 4px; overflow: hidden; display: inline-block; vertical-align: middle; margin-right: 6px; }
+  .bar-fill { height: 100%; border-radius: 4px; background: var(--blue); }
+</style>
+</head>
+<body>
+<header>
+  <div class="title">
+    💼 美股全自动模拟盘交易监控
+    <span class="badge safe" id="acctBadge">PAPER ONLY · PA33PUKOC</span>
+    <span class="badge" id="regimeLinkBadge">联动选股大脑</span>
+  </div>
+  <div class="controls">
+    <button id="refreshBtn" onclick="loadPortfolio(true)">🔄 刷新模拟盘</button>
+    <a class="btn secondary" href="https://app.alpaca.markets/paper/dashboard/overview" target="_blank" rel="noopener">↗ Alpaca 官网盘面</a>
+    <a class="btn primary-link" href="/screener">🔍 返回选股大脑 →</a>
+  </div>
+</header>
+
+<main>
+  <!-- Top 4 KPI Cards -->
+  <div class="grid-4">
+    <div class="card" style="margin-bottom:0; border-top: 3px solid var(--blue);">
+      <div class="sub">模拟盘总资产 (Equity)</div>
+      <div class="kpi-val" id="kpiEquity">$100,000.00</div>
+      <div class="sub" id="kpiEquitySub">初始本金 $100,000.00</div>
+    </div>
+    <div class="card" style="margin-bottom:0; border-top: 3px solid var(--green);">
+      <div class="sub">累计收益率 / 总盈亏</div>
+      <div class="kpi-val" id="kpiTotalRet">0.00%</div>
+      <div class="sub" id="kpiTotalPl">$0.00</div>
+    </div>
+    <div class="card" style="margin-bottom:0; border-top: 3px solid var(--cyan);">
+      <div class="sub">今日盈亏 (Daily P/L)</div>
+      <div class="kpi-val" id="kpiDailyPl">$0.00</div>
+      <div class="sub" id="kpiDailyPct">0.00%</div>
+    </div>
+    <div class="card" style="margin-bottom:0; border-top: 3px solid var(--amber);">
+      <div class="sub">可用现金 / 当前仓位</div>
+      <div class="kpi-val" id="kpiCash">$100,000.00</div>
+      <div class="sub" id="kpiPosSummary">持仓 0 只 · 挂单 0 笔</div>
+    </div>
+  </div>
+
+  <!-- Equity Curve & Screener Linkage Summary -->
+  <div class="grid-2">
+    <div class="card" style="margin-bottom:0;">
+      <h3>
+        <span>📈 模拟盘净值与累计收益率曲线</span>
+        <span class="sub" id="curveMeta">加载中...</span>
+      </h3>
+      <svg id="equitySvg" viewBox="0 0 760 220" style="width:100%; height:220px; background:#0b1220; border-radius:8px; border:1px solid var(--border);"></svg>
+      <div class="sub" style="margin-top:8px; display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+        <span id="syncMeta">正在同步数据...</span>
+        <span>每日云端时间线：06:30 选股扫描 → 22:35 Alpaca 自动调仓（零杠杆）</span>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:0;">
+      <h3>
+        <span>🎯 选股大脑最新目标配置（点击代码直达因子拆解）</span>
+        <a class="sym-link" href="/screener" style="font-size:12px;">去选股页调整 →</a>
+      </h3>
+      <div class="sub" id="allocSummary" style="margin-bottom:10px;">-</div>
+      <div style="overflow-x:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>角色</th>
+              <th>代码</th>
+              <th>目标权重</th>
+              <th>当前状态</th>
+              <th>综合分</th>
+            </tr>
+          </thead>
+          <tbody id="targetAllocBody">
+            <tr><td colspan="5" class="sub">加载中...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Live Holdings / Pending Open Orders -->
+  <div class="card">
+    <h3>
+      <span id="holdingsTitle">📦 当前持仓与个股盈亏明细</span>
+      <span class="sub">点击任意股票代码，直接跳回「选股大脑」查看该股 60 日走势与多因子评分</span>
+    </h3>
+    <div style="overflow-x:auto;">
+      <table>
+        <thead>
+          <tr>
+            <th>股票代码</th>
+            <th>持仓股数 / 挂单金额</th>
+            <th>成本价</th>
+            <th>最新价</th>
+            <th>当前市值</th>
+            <th>实际占比 vs 目标</th>
+            <th>个股浮盈浮亏 / 挂单状态</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="holdingsBody">
+          <tr><td colspan="8" class="sub">加载中...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Full Historical Order Ledger -->
+  <div class="card">
+    <h3>
+      <span>🧾 历史自动买卖账本（Alpaca Paper Trading 真实回报）</span>
+      <div class="pill-group" id="ledgerFilters">
+        <button class="pill active" data-filter="all" onclick="setFilter('all')">全部记录</button>
+        <button class="pill" data-filter="screener" onclick="setFilter('screener')">仅现役选股策略</button>
+        <button class="pill" data-filter="BUY" onclick="setFilter('BUY')">仅买入 BUY</button>
+        <button class="pill" data-filter="SELL" onclick="setFilter('SELL')">仅卖出 SELL</button>
+      </div>
+    </h3>
+    <div style="overflow-x:auto; max-height:360px; overflow-y:auto;">
+      <table>
+        <thead>
+          <tr>
+            <th>下单时间</th>
+            <th>策略版本</th>
+            <th>方向</th>
+            <th>股票代码</th>
+            <th>原权重 → 目标权重</th>
+            <th>下单金额 (USD)</th>
+            <th>回报状态</th>
+            <th>订单 ID</th>
+          </tr>
+        </thead>
+        <tbody id="ordersBody">
+          <tr><td colspan="8" class="sub">加载中...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<script>
+let DATA = null;
+let LEDGER_FILTER = 'all';
+
+function fmtUsd(v, signed = false) {
+  if (v === null || v === undefined || Number.isNaN(Number(v))) return '-';
+  const n = Number(v);
+  const absStr = Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  if (signed) return (n > 0 ? '+$' : n < 0 ? '-$' : '$') + absStr;
+  return (n < 0 ? '-$' : '$') + absStr;
+}
+function fmtPct(v, signed = true) {
+  if (v === null || v === undefined || Number.isNaN(Number(v))) return '-';
+  const n = Number(v) * 100;
+  return (signed && n > 0 ? '+' : '') + n.toFixed(2) + '%';
+}
+function fmtNum(v, d = 2) {
+  if (v === null || v === undefined || Number.isNaN(Number(v))) return '-';
+  return Number(v).toFixed(d);
+}
+function goScreener(sym) {
+  window.location.href = `/screener?symbol=${encodeURIComponent(sym)}`;
+}
+
+async function loadPortfolio(tryLive = false) {
+  const btn = document.getElementById('refreshBtn');
+  btn.disabled = true;
+  btn.textContent = tryLive ? '⏳ 正在拉取最新状态...' : '⏳ 加载中...';
+  try {
+    const res = await fetch(`/api/alpaca/portfolio?live=${tryLive ? 1 : 0}`);
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error || '加载失败');
+    DATA = json;
+    renderAll();
+  } catch (err) {
+    document.getElementById('syncMeta').textContent = '加载失败：' + err.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🔄 刷新模拟盘';
+  }
+}
+
+function setFilter(f) {
+  LEDGER_FILTER = f;
+  document.querySelectorAll('#ledgerFilters .pill').forEach(el => {
+    el.classList.toggle('active', el.dataset.filter === f);
+  });
+  renderLedger();
+}
+
+function renderAll() {
+  if (!DATA) return;
+  const snap = DATA.snapshot;
+  const alloc = DATA.latest_allocation;
+  const initEq = DATA.initial_equity || 100000;
+  const twMap = (alloc && alloc.target_weights) ? alloc.target_weights : {};
+
+  // Header & KPIs
+  if (snap) {
+    const hasPrev = Number(snap.last_equity || 0) > 0;
+    const dailyPl = hasPrev ? Number(snap.daily_pl || 0) : 0;
+    const dailyPct = hasPrev ? Number(snap.daily_plpc || 0) : 0;
+    document.getElementById('acctBadge').textContent = `PAPER ONLY · ${snap.account_number || 'PA33PUKOC'}`;
+    document.getElementById('syncMeta').textContent =
+      `${DATA.source === 'live_alpaca_paper' ? '🟢 实时直连 Alpaca' : '☁️ 云端最新快照'} · 更新于 ${snap.synced_at || '-'}`;
+
+    document.getElementById('kpiEquity').textContent = fmtUsd(snap.equity);
+    document.getElementById('kpiEquitySub').textContent = hasPrev
+      ? `初始本金 ${fmtUsd(initEq)} · 昨日收盘 ${fmtUsd(snap.last_equity)}`
+      : `初始本金 ${fmtUsd(initEq)} · 首次建仓待开盘成交`;
+
+    const retEl = document.getElementById('kpiTotalRet');
+    retEl.textContent = fmtPct(snap.total_return_pct);
+    retEl.className = 'kpi-val ' + ((snap.total_return_usd || 0) >= 0 ? 'pos' : 'neg');
+    document.getElementById('kpiTotalPl').textContent = `累计盈亏 ${fmtUsd(snap.total_return_usd, true)}`;
+
+    const dayEl = document.getElementById('kpiDailyPl');
+    dayEl.textContent = fmtUsd(dailyPl, true);
+    dayEl.className = 'kpi-val ' + (dailyPl >= 0 ? 'pos' : 'neg');
+    document.getElementById('kpiDailyPct').textContent = `今日涨跌幅 ${fmtPct(dailyPct)}`;
+
+    const posList = snap.positions || [];
+    const openOrders = snap.open_orders || [];
+    const invPct = snap.equity > 0 ? ((snap.invested_value || 0) / snap.equity * 100).toFixed(1) : '0.0';
+    document.getElementById('kpiCash').textContent = fmtUsd(snap.cash);
+    document.getElementById('kpiPosSummary').textContent = `已持仓 ${posList.length} 只 (${invPct}%) · 待成交挂单 ${openOrders.length} 笔`;
+
+    renderHoldings(posList, openOrders, twMap, snap.equity || initEq);
+  } else {
+    document.getElementById('syncMeta').textContent = '尚无云端快照，仅展示历史下单账本';
+    renderHoldings([], [], twMap, initEq);
+  }
+
+  // Screener linkage panel
+  if (alloc) {
+    const rb = document.getElementById('regimeLinkBadge');
+    rb.textContent = `${alloc.regime_label || alloc.regime} · ${alloc.signal_date}`;
+    rb.className = 'badge ' + (alloc.regime === 'BULL_OFFENSE' ? 'regime-bull' : alloc.regime === 'BEAR_DEFENSE' ? 'regime-bear' : 'regime-neutral');
+    document.getElementById('allocSummary').textContent =
+      `进攻 ${(Number(alloc.offense_weight || 0)*100).toFixed(1)}% · 防守 ${(Number(alloc.defense_weight || 0)*100).toFixed(1)}% · 现金 ${(Number(alloc.cash_weight || 0)*100).toFixed(1)}%`;
+
+    const heldSyms = new Set((snap?.positions || []).map(p => p.symbol));
+    const pendSyms = new Set((snap?.open_orders || []).map(o => o.symbol));
+    const rows = (alloc.positions || []).map(p => {
+      const isOff = p.sleeve === 'OFFENSE';
+      const st = heldSyms.has(p.symbol)
+        ? '<span class="tag buy">已持仓</span>'
+        : pendSyms.has(p.symbol)
+          ? '<span class="tag pending">待开盘成交</span>'
+          : '<span class="tag">待下次调仓</span>';
+      return `
+        <tr class="clickable" onclick="goScreener('${p.symbol}')">
+          <td><span class="tag ${isOff ? 'off' : 'def'}">${isOff ? '🔥 进攻' : '🛡️ 防守'}</span></td>
+          <td><a class="sym-link" href="/screener?symbol=${p.symbol}" onclick="event.stopPropagation()">${p.symbol}</a></td>
+          <td><strong>${(Number(p.weight)*100).toFixed(1)}%</strong></td>
+          <td>${st}</td>
+          <td>${p.score} 分</td>
+        </tr>`;
+    }).join('');
+    document.getElementById('targetAllocBody').innerHTML = rows || '<tr><td colspan="5" class="sub">空仓防守</td></tr>';
+  }
+
+  drawEquityCurve(DATA.equity_curve || [], initEq);
+  renderLedger();
+}
+
+function renderHoldings(posList, openOrders, twMap, equity) {
+  const titleEl = document.getElementById('holdingsTitle');
+  const tbody = document.getElementById('holdingsBody');
+
+  if (posList.length > 0) {
+    titleEl.textContent = `📦 当前实际持仓 (${posList.length} 只)`;
+    tbody.innerHTML = posList.map(p => {
+      const plCls = (p.unrealized_pl || 0) >= 0 ? 'pos' : 'neg';
+      const tw = twMap[p.symbol] || 0;
+      const curPct = (p.weight || 0) * 100;
+      return `
+        <tr class="clickable" onclick="goScreener('${p.symbol}')">
+          <td><a class="sym-link" href="/screener?symbol=${p.symbol}" onclick="event.stopPropagation()">${p.symbol}</a></td>
+          <td>${fmtNum(p.qty, 4)} 股</td>
+          <td>$${fmtNum(p.avg_entry_price)}</td>
+          <td><strong>$${fmtNum(p.current_price)}</strong></td>
+          <td><strong>${fmtUsd(p.market_value)}</strong></td>
+          <td>
+            <span class="bar-bg"><span class="bar-fill" style="width:${Math.min(100, curPct * 2.5)}%"></span></span>
+            <strong>${curPct.toFixed(1)}%</strong> <span class="sub">/ 目标 ${(tw*100).toFixed(1)}%</span>
+          </td>
+          <td class="${plCls}"><strong>${fmtUsd(p.unrealized_pl, true)}</strong> (${fmtPct(p.unrealized_plpc)})</td>
+          <td><a class="sym-link" href="/screener?symbol=${p.symbol}" onclick="event.stopPropagation()">看走势 →</a></td>
+        </tr>`;
+    }).join('');
+    return;
+  }
+
+  if (openOrders.length > 0) {
+    titleEl.textContent = `⏳ 待美股开盘成交挂单 (${openOrders.length} 笔 · 当前休市)`;
+    tbody.innerHTML = openOrders.map(o => {
+      const tw = twMap[o.symbol] || 0;
+      const estPct = (o.notional && equity > 0) ? (o.notional / equity * 100) : tw * 100;
+      return `
+        <tr class="clickable" onclick="goScreener('${o.symbol}')">
+          <td><a class="sym-link" href="/screener?symbol=${o.symbol}" onclick="event.stopPropagation()">${o.symbol}</a></td>
+          <td><strong>${o.notional ? fmtUsd(o.notional) : (fmtNum(o.qty, 4) + ' 股')}</strong></td>
+          <td class="sub">开盘市价</td>
+          <td class="sub">待成交</td>
+          <td>${o.notional ? fmtUsd(o.notional) : '-'}</td>
+          <td>
+            <span class="bar-bg"><span class="bar-fill" style="width:${Math.min(100, estPct * 2.5)}%"></span></span>
+            目标 <strong>${(tw*100).toFixed(1)}%</strong>
+          </td>
+          <td><span class="tag ${o.side === 'BUY' ? 'buy' : 'sell'}">${o.side}</span> <span class="tag pending">${o.status}</span></td>
+          <td><a class="sym-link" href="/screener?symbol=${o.symbol}" onclick="event.stopPropagation()">看走势 →</a></td>
+        </tr>`;
+    }).join('');
+    return;
+  }
+
+  titleEl.textContent = '📦 当前持仓（100% 纯现金空仓）';
+  tbody.innerHTML = '<tr><td colspan="8" class="sub">当前无持仓、无待成交挂单</td></tr>';
+}
+
+function renderLedger() {
+  const allOrders = DATA?.orders || [];
+  const filtered = allOrders.filter(o => {
+    if (LEDGER_FILTER === 'screener') return String(o.version || '').startsWith('screener');
+    if (LEDGER_FILTER === 'BUY') return o.side === 'BUY';
+    if (LEDGER_FILTER === 'SELL') return o.side === 'SELL';
+    return true;
+  });
+  document.getElementById('ordersBody').innerHTML = filtered.length
+    ? filtered.map(o => `
+        <tr class="clickable" onclick="goScreener('${o.symbol}')">
+          <td class="sub">${String(o.recorded_at || '').replace('T', ' ')}</td>
+          <td><span class="tag">${o.version || '-'}</span></td>
+          <td><span class="tag ${o.side === 'BUY' ? 'buy' : 'sell'}">${o.side}</span></td>
+          <td><a class="sym-link" href="/screener?symbol=${o.symbol}" onclick="event.stopPropagation()">${o.symbol}</a></td>
+          <td>${(Number(o.prev_weight || 0)*100).toFixed(1)}% → <strong>${(Number(o.target_weight || 0)*100).toFixed(1)}%</strong></td>
+          <td><strong>${fmtUsd(o.notional_usd)}</strong></td>
+          <td class="${o.ok ? 'pos' : 'neg'}">${o.status}</td>
+          <td class="sub" style="font-family:monospace; font-size:11.5px;">${String(o.ord_id || '').slice(0, 12)}...</td>
+        </tr>`).join('')
+    : '<tr><td colspan="8" class="sub">当前筛选条件下暂无订单记录</td></tr>';
+}
+
+function drawEquityCurve(curve, initEq) {
+  const svg = document.getElementById('equitySvg');
+  const meta = document.getElementById('curveMeta');
+  const W = 760, H = 220, padL = 62, padR = 24, padT = 22, padB = 28;
+  if (!curve || curve.length === 0) {
+    meta.textContent = '起始基准 $100,000.00';
+    svg.innerHTML = `
+      <line x1="${padL}" y1="${H/2}" x2="${W-padR}" y2="${H/2}" stroke="#334155" stroke-dasharray="4,4"/>
+      <circle cx="${padL + 16}" cy="${H/2}" r="5" fill="#22c55e"/>
+      <text x="${padL + 30}" y="${H/2 + 4}" fill="#94a3b8" font-size="13">初始基准 $100,000.00 (0.00%) · 开盘成交后每日自动描点</text>`;
+    return;
+  }
+  const vals = curve.map(x => Number(x.equity || initEq));
+  const minV = Math.min(initEq, ...vals) * 0.992;
+  const maxV = Math.max(initEq, ...vals) * 1.008;
+  const n = vals.length;
+  const sx = i => n === 1 ? (padL + W - padR) / 2 : padL + (i / (n - 1)) * (W - padL - padR);
+  const sy = v => H - padB - ((v - minV) / Math.max(1e-6, maxV - minV)) * (H - padT - padB);
+  const lastV = vals[n - 1];
+  const color = lastV >= initEq ? '#22c55e' : '#ef4444';
+  const baseY = sy(initEq).toFixed(1);
+  const pathD = vals.map((v, i) => `${i === 0 ? 'M' : 'L'}${sx(i).toFixed(1)},${sy(v).toFixed(1)}`).join(' ');
+  meta.textContent = `${curve[0].date} → ${curve[n - 1].date}（已记录 ${n} 个交易日）`;
+
+  const dots = vals.map((v, i) =>
+    `<circle cx="${sx(i).toFixed(1)}" cy="${sy(v).toFixed(1)}" r="${i === n - 1 ? 5 : 3}" fill="${color}"/>`
+  ).join('');
+
+  svg.innerHTML = `
+    <line x1="${padL}" y1="${padT}" x2="${W-padR}" y2="${padT}" stroke="#1e293b" stroke-dasharray="3,3"/>
+    <line x1="${padL}" y1="${baseY}" x2="${W-padR}" y2="${baseY}" stroke="#475569" stroke-dasharray="4,4"/>
+    <line x1="${padL}" y1="${H-padB}" x2="${W-padR}" y2="${H-padB}" stroke="#1e293b"/>
+    ${n > 1 ? `<path d="${pathD}" fill="none" stroke="${color}" stroke-width="2.6"/>` : ''}
+    ${dots}
+    <text x="8" y="${padT + 4}" fill="#94a3b8" font-size="11">$${(maxV/1000).toFixed(1)}k</text>
+    <text x="8" y="${Number(baseY) + 4}" fill="#cbd5e1" font-size="11">$100.0k</text>
+    <text x="8" y="${H - padB + 4}" fill="#94a3b8" font-size="11">$${(minV/1000).toFixed(1)}k</text>
+    <text x="${padL}" y="${H - 8}" fill="#94a3b8" font-size="11">${curve[0].date}</text>
+    <text x="${W - padR - 72}" y="${H - 8}" fill="#94a3b8" font-size="11">${curve[n - 1].date}</text>
+    <text x="${sx(n - 1) - 36}" y="${sy(lastV) - 10}" fill="${color}" font-size="12" font-weight="700">${fmtUsd(lastV)}</text>`;
+}
+
+loadPortfolio(false);
+</script>
+</body>
+</html>

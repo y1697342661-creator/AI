@@ -243,6 +243,12 @@ def load_alpaca_portfolio_view(try_live: bool = False) -> dict[str, Any]:
     if snapshot is None:
         source = "orders_ledger_only"
 
+    latest_alloc: dict[str, Any] | None = None
+    try:
+        latest_alloc = load_screener_allocation()
+    except Exception:
+        latest_alloc = None
+
     return {
         "ok": True,
         "paper_only": True,
@@ -252,6 +258,7 @@ def load_alpaca_portfolio_view(try_live: bool = False) -> dict[str, Any]:
         "snapshot": snapshot,
         "equity_curve": equity_curve,
         "orders": orders,
+        "latest_allocation": latest_alloc,
     }
 
 
