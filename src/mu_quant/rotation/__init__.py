@@ -1,1 +1,1 @@
-"""6-Asset Cross-Sector High-Elasticity Top-2 Trend Rotation (Zero Leverage, OKX Demo Spot Only)."""
+"""US Stock Screener-Linked Alpaca Paper Trading Auto-Executor (Zero Leverage, Paper API Only)."""

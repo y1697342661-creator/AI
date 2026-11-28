@@ -296,51 +296,32 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(html)
             return
-        if parsed.path in ("/rotation", "/rotation.html"):
-            html = (STATIC_DIR / "rotation.html").read_bytes()
+        if parsed.path in ("/screener", "/screener.html"):
+            html = (STATIC_DIR / "screener.html").read_bytes()
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Content-Length", str(len(html)))
             self.end_headers()
             self.wfile.write(html)
             return
-        if parsed.path == "/api/rotation":
+        if parsed.path == "/api/screener":
             qs = urllib.parse.parse_qs(parsed.query)
+            preset = qs.get("preset", ["core_momentum"])[0]
+            sector = qs.get("sector", ["ALL"])[0]
+            scan_mode = qs.get("scan_mode", ["curated"])[0]
             do_refresh = qs.get("refresh", ["0"])[0] in ("1", "true", "yes")
             try:
-                from mu_quant.rotation.engine import (
-                    ROTATION_FORWARD_NAV,
-                    ROTATION_SIGNALS_LOG,
-                    ROTATION_STATE_FILE,
-                    compute_rotation_signal,
-                    load_rotation_config,
-                    update_rotation_forward_scorecard,
+                from mu_quant.screener.engine import run_screener
+                res = run_screener(
+                    preset=preset,
+                    sector=sector,
+                    refresh=do_refresh,
+                    scan_mode=scan_mode,
+                    record_history=do_refresh,
                 )
-                cfg = load_rotation_config()
-                sig = compute_rotation_signal(cfg, refresh=do_refresh)
-                if do_refresh:
-                    update_rotation_forward_scorecard(sig)
-                st = json.loads(ROTATION_STATE_FILE.read_text(encoding="utf-8-sig")) if ROTATION_STATE_FILE.exists() else {}
-                nav_rows = (
-                    pd.read_csv(ROTATION_FORWARD_NAV, encoding="utf-8-sig").to_dict(orient="records")
-                    if ROTATION_FORWARD_NAV.exists()
-                    else []
-                )
-                sig_rows = (
-                    pd.read_csv(ROTATION_SIGNALS_LOG, encoding="utf-8-sig").tail(30).to_dict(orient="records")
-                    if ROTATION_SIGNALS_LOG.exists()
-                    else []
-                )
-                self._send_json(_clean_json({
-                    "ok": True,
-                    "config": cfg,
-                    "signal": sig,
-                    "forward_state": st,
-                    "forward_nav": nav_rows,
-                    "signals_log": sig_rows,
-                }))
+                self._send_json(_clean_json(res))
             except Exception as exc:  # noqa: BLE001
-                log.exception("Rotation API error")
+                log.exception("Screener API error")
                 self._send_json({"ok": False, "error": str(exc)}, status=500)
             return
         if parsed.path == "/api/dashboard":
@@ -408,6 +389,20 @@ class DashboardHandler(BaseHTTPRequestHandler):
             if parsed.path == "/api/data/refresh":
                 res = refresh_all_market_data(force=True)
                 self._send_json(res)
+                return
+            if parsed.path == "/api/screener/symbol":
+                from mu_quant.screener.engine import add_custom_symbol, remove_custom_symbol
+                action = str(body.get("action", "add")).lower()
+                symbol = str(body.get("symbol", "")).strip().upper()
+                if action == "remove":
+                    res = remove_custom_symbol(symbol)
+                else:
+                    res = add_custom_symbol(
+                        symbol=symbol,
+                        sector=str(body.get("sector", "自选观察")),
+                        theme=str(body.get("theme", "自定义美股标的")),
+                    )
+                self._send_json(_clean_json(res))
                 return
             self._send_json({"error": "Not found"}, status=404)
         except Exception as exc:  # noqa: BLE001

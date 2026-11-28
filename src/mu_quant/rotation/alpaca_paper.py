@@ -1,10 +1,10 @@
-"""Alpaca Paper Trading (SIMULATED ONLY) Auto-Sync for 7-Asset US Stock Rotation.
+"""Alpaca Paper Trading (SIMULATED ONLY) Auto-Sync for US Stock Full-Market Screener.
 
 HARD SAFETY INVARIANTS (cannot be bypassed):
 1. HARDCODED endpoint `https://paper-api.alpaca.markets` (live `api.alpaca.markets` is unreachable by design).
-2. Strict 7-symbol whitelist from `configs/rotation_v1.0.0.json` (MU, AVGO, PLTR, GOOGL, HOOD, RKLB, QQQ).
+2. Clean US stock ticker validation (`^[A-Z]{1,5}$`), single-stock hard cap `<= 40%`, total weight `<= 100%`.
 3. Zero leverage: sizes strictly off `equity` (NEVER `buying_power`), sells exited positions first, buys with cash only.
-4. Supports GitHub Secret `ALPACA_PAPER` (JSON `{"apiKey":"...","secretKey":"..."}`), env vars, or local gitignored
+4. Supports GitHub Secret `ALPACA_PAPER` / `AMEREICA` (JSON `{"apiKey":"...","secretKey":"..."}`), env vars, or local gitignored
    `configs/alpaca_paper_secrets.local.json`.
 5. Pure Python stdlib (zero extra dependencies).
 """
@@ -121,154 +121,6 @@ def get_alpaca_paper_account() -> dict[str, Any]:
             }
             for p in positions
         ],
-    }
-
-
-def sync_rotation_alpaca_paper(sig: dict[str, Any], cfg: dict[str, Any], dry_run: bool = False) -> dict[str, Any]:
-    """Sync the 7 whitelisted US stocks on Alpaca Paper Trading (`paper-api.alpaca.markets` ONLY)."""
-    rules = cfg["rules"]
-    tol = float(rules.get("rebalance_tolerance", 0.05))
-    min_order_usd = float(rules.get("min_order_usdt", 15.0))
-    allowed_syms = [u["symbol"] for u in cfg["universe"]]
-    allowed_set = set(allowed_syms)
-
-    # 1) Fetch Paper Account & current positions
-    acct = get_alpaca_paper_account()
-    if not acct.get("ok"):
-        return {"ok": False, "paper_only": True, "error": acct.get("error")}
-
-    equity = float(acct["equity"])
-    cash = float(acct["cash"])
-    pos_map = {p["symbol"]: p for p in acct["positions"] if p["symbol"] in allowed_set}
-    cur_weights = {s: (pos_map[s]["market_value"] / equity if (s in pos_map and equity > 0) else 0.0) for s in allowed_syms}
-    target_weights = {s: float(sig["target_weights"].get(s, 0.0)) for s in allowed_syms}
-
-    # Hard zero-leverage check
-    total_tw = sum(target_weights.values())
-    if total_tw > 1.0:
-        target_weights = {s: w / total_tw for s, w in target_weights.items()}
-
-    # Cancel any stale open orders on whitelisted symbols first (if not dry_run)
-    if not dry_run:
-        _alpaca_request("DELETE", "/v2/orders")
-
-    actions_planned: list[dict[str, Any]] = []
-    orders_executed: list[dict[str, Any]] = []
-
-    # 2) SELLS first (full exit via DELETE /v2/positions/{sym}, partial trim via notional sell)
-    for sym in allowed_syms:
-        assert sym in allowed_set
-        tw = target_weights[sym]
-        cw = cur_weights[sym]
-        cur_val = pos_map[sym]["market_value"] if sym in pos_map else 0.0
-        if cur_val < min_order_usd:
-            continue
-        is_full_exit = (tw == 0.0)
-        is_trim = (cw - tw >= tol and (cw - tw) * equity >= min_order_usd)
-        if is_full_exit or is_trim:
-            sell_usd = cur_val if is_full_exit else (cw - tw) * equity
-            actions_planned.append({
-                "symbol": sym,
-                "side": "sell",
-                "prev_w": round(cw, 4),
-                "target_w": round(tw, 4),
-                "est_usd": round(sell_usd, 2),
-                "full_exit": is_full_exit,
-            })
-            if not dry_run:
-                if is_full_exit:
-                    code, resp = _alpaca_request("DELETE", f"/v2/positions/{sym}")
-                else:
-                    code, resp = _alpaca_request("POST", "/v2/orders", {
-                        "symbol": sym,
-                        "notional": f"{sell_usd:.2f}",
-                        "side": "sell",
-                        "type": "market",
-                        "time_in_force": "day",
-                    })
-                ok = code in (200, 201)
-                ord_id = str(resp.get("id", "")) if isinstance(resp, dict) else ""
-                status_txt = str(resp.get("status", resp.get("message", ""))) if isinstance(resp, dict) else str(resp)
-                if ok:
-                    cash += sell_usd * 0.998
-                orders_executed.append({
-                    "recorded_at": dt.datetime.now().isoformat(timespec="seconds"),
-                    "paper_only": True,
-                    "version": cfg["version"],
-                    "symbol": sym,
-                    "side": "SELL",
-                    "prev_weight": round(cw, 4),
-                    "target_weight": round(tw, 4),
-                    "notional_usd": round(sell_usd, 2),
-                    "ok": ok,
-                    "ord_id": ord_id,
-                    "status": status_txt,
-                })
-
-    # 3) BUYS second (strict cash only, zero margin/leverage)
-    for sym in allowed_syms:
-        assert sym in allowed_set
-        tw = target_weights[sym]
-        cw = cur_weights[sym]
-        if tw <= 0:
-            continue
-        if tw - cw >= tol:
-            want_usd = (tw - cw) * equity
-            spend_usd = min(want_usd, max(0.0, cash * 0.99))
-            if spend_usd >= min_order_usd:
-                actions_planned.append({
-                    "symbol": sym,
-                    "side": "buy",
-                    "prev_w": round(cw, 4),
-                    "target_w": round(tw, 4),
-                    "est_usd": round(spend_usd, 2),
-                    "full_exit": False,
-                })
-                if not dry_run:
-                    code, resp = _alpaca_request("POST", "/v2/orders", {
-                        "symbol": sym,
-                        "notional": f"{spend_usd:.2f}",
-                        "side": "buy",
-                        "type": "market",
-                        "time_in_force": "day",
-                    })
-                    ok = code in (200, 201)
-                    ord_id = str(resp.get("id", "")) if isinstance(resp, dict) else ""
-                    status_txt = str(resp.get("status", resp.get("message", ""))) if isinstance(resp, dict) else str(resp)
-                    if ok:
-                        cash = max(0.0, cash - spend_usd)
-                    orders_executed.append({
-                        "recorded_at": dt.datetime.now().isoformat(timespec="seconds"),
-                        "paper_only": True,
-                        "version": cfg["version"],
-                        "symbol": sym,
-                        "side": "BUY",
-                        "prev_weight": round(cw, 4),
-                        "target_weight": round(tw, 4),
-                        "notional_usd": round(spend_usd, 2),
-                        "ok": ok,
-                        "ord_id": ord_id,
-                        "status": status_txt,
-                    })
-
-    if orders_executed:
-        df_ord = pd.read_csv(ALPACA_ORDERS_LOG, encoding="utf-8-sig") if ALPACA_ORDERS_LOG.exists() else pd.DataFrame()
-        pd.concat([df_ord, pd.DataFrame(orders_executed)], ignore_index=True).to_csv(
-            ALPACA_ORDERS_LOG, index=False, encoding="utf-8-sig"
-        )
-
-    all_ok = all(o["ok"] for o in orders_executed) if orders_executed else True
-    return {
-        "ok": all_ok,
-        "paper_only": True,
-        "dry_run": dry_run,
-        "account_number": acct.get("account_number"),
-        "equity_usd": round(equity, 2),
-        "cash_usd": round(cash, 2),
-        "cur_weights": {k: round(v, 4) for k, v in cur_weights.items()},
-        "target_weights": {k: round(v, 4) for k, v in target_weights.items()},
-        "actions_planned": actions_planned,
-        "orders_executed": orders_executed,
     }
 
 
