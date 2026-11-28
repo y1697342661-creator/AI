@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>美股 7 选 2 跨赛道高弹性轮动看板 · 前瞻模拟盘</title>
+<title>美股 10 选 3 跨赛道动态分仓轮动看板 · Alpaca 模拟盘</title>
 <style>
   :root {
     --bg: #0b0f17; --card: #131a26; --border: #243044; --text: #e6edf7; --muted: #8b9bb4;
@@ -44,12 +44,13 @@
 <body>
 <header>
   <div class="title">
-    🎯 美股 7 选 2 跨赛道高弹性轮动看板
-    <span class="badge" id="verBadge">rotation-v1.0.0</span>
-    <span class="badge safe">纯美股真实价格前瞻模拟盘 · 零杠杆</span>
+    🎯 美股 10 选 3 跨赛道动态分仓轮动看板
+    <span class="badge" id="verBadge">rotation-v2.0.0</span>
+    <span class="badge safe">强弱+波动动态分仓 · Alpaca 模拟盘 · 零杠杆</span>
   </div>
   <div class="controls">
-    <button id="refreshBtn" onclick="loadRotation(true)">🔄 刷新7股最新行情</button>
+    <button id="refreshBtn" onclick="loadRotation(true)">🔄 刷新10股最新行情</button>
+    <a class="btn secondary" href="/screener">🔍 美股选股系统</a>
     <a class="btn secondary" href="/">← 切换 MU 2.0 专项看板</a>
   </div>
 </header>
@@ -70,7 +71,7 @@
       <div class="sub" id="kpiRet">累计收益 0.00% · 已跑 1 天</div>
     </div>
     <div class="card">
-      <div class="sub">当前选中 Top-2 标的</div>
+      <div class="sub">当前选中 Top-3 标的</div>
       <div class="kpi-val pos" id="kpiSelected">-</div>
       <div class="sub" id="kpiDate">最新交易日: -</div>
     </div>
@@ -82,15 +83,15 @@
     <div class="card">
       <div class="sub">前瞻最大回撤</div>
       <div class="kpi-val" id="kpiDD">0.00%</div>
-      <div class="sub">单只上限 50% · 跌破200日年线强制空仓</div>
+      <div class="sub">单只上限 40% · 按强弱与波动动态分配</div>
     </div>
   </div>
 
-  <!-- 7-Asset Live Ranking Table -->
+  <!-- 10-Asset Live Ranking Table -->
   <div class="card">
     <h3>
-      <span>📊 7 只跨赛道候选股实时排名打分</span>
-      <span class="sub" id="rankHint">排序规则：站上200日年线优先 → 按60日涨幅从高到低选 Top-2</span>
+      <span>📊 10 只跨赛道候选股实时排名与动态分仓</span>
+      <span class="sub" id="rankHint">排序规则：站上200日年线优先 → 按60日涨幅选 Top-3 → 按强弱+反波动率动态配资</span>
     </h3>
     <div style="overflow-x:auto;">
       <table>
@@ -286,7 +287,7 @@ async function loadRotation(refresh=false) {
       const isPick = s.target_weight > 0;
       const dist = s.sma200 ? (s.close / s.sma200 - 1) : null;
       const badge = isPick
-        ? `<span class="badge pick">🏆 入选 Top-2</span>`
+        ? (s.dual_confirm ? `<span class="badge pick">🏆 入选 Top-3 · 双确认</span>` : `<span class="badge pick">🌱 入选 Top-3 · 试探(6折)</span>`)
         : (s.above200 ? `<span class="badge safe">✅ 站上年线(备选)</span>` : `<span class="badge out">❌ 跌破年线(空仓)</span>`);
       const wPct = (s.target_weight * 100).toFixed(1);
       return `<tr class="${isPick ? 'selected-row' : ''}">

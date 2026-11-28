@@ -14,6 +14,7 @@ import datetime as dt
 import json
 import math
 import sys
+import time
 import urllib.request
 from pathlib import Path
 from typing import Any
@@ -61,9 +62,20 @@ def _fetch_eastmoney_kline(secid: str, beg: str = "20200101") -> pd.DataFrame:
         f"secid={secid}&fields1=f1,f2,f3,f4,f5,f6&fields2=f51,f52,f53,f54,f55,f56"
         f"&klt=101&fqt=1&beg={beg}&end=20500101"
     )
-    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-    with urllib.request.urlopen(req, timeout=20) as r:
-        data = json.loads(r.read().decode("utf-8"))
+    last_err: Exception | None = None
+    data: dict[str, Any] = {}
+    for attempt in range(3):
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req, timeout=20) as r:
+                data = json.loads(r.read().decode("utf-8"))
+            break
+        except Exception as exc:  # noqa: BLE001
+            last_err = exc
+            time.sleep(0.5 * (attempt + 1))
+    else:
+        if last_err is not None:
+            raise last_err
     klines = (data.get("data") or {}).get("klines") or []
     rows = []
     for line in klines:
@@ -125,12 +137,14 @@ def load_or_refresh_asset(item: dict[str, Any], refresh: bool = True) -> pd.Data
 
 
 def compute_rotation_signal(cfg: dict[str, Any], refresh: bool = True) -> dict[str, Any]:
-    """Strictly causal T-day close Top-2 rotation scoring and target weights."""
+    """Strictly causal T-day close Top-K rotation scoring and dynamic risk+trend weighting."""
     rules = cfg["rules"]
     ma_n = int(rules["trend_ma_days"])
+    ma50_n = int(rules.get("confirm_ma_days", 50))
     mom_n = int(rules["momentum_days"])
     top_k = int(rules["top_k"])
     max_w = float(rules["max_weight_per_asset"])
+    early_disc = float(rules.get("early_trend_discount", 0.60))
     target_dvol = float(rules["target_downside_vol"])
     dvol_n = int(rules["dvol_window"])
 
@@ -142,6 +156,7 @@ def compute_rotation_signal(cfg: dict[str, Any], refresh: bool = True) -> dict[s
         close = df["Close"]
         ret = close.pct_change()
         sma200 = close.rolling(ma_n, min_periods=ma_n).mean()
+        sma50 = close.rolling(ma50_n, min_periods=ma50_n).mean()
         mom60 = close / close.shift(mom_n) - 1.0
         neg_sq = np.where(ret < 0.0, ret ** 2, 0.0)
         dvol21 = np.sqrt(pd.Series(neg_sq, index=df.index).rolling(dvol_n, min_periods=dvol_n).mean() * 252.0)
@@ -150,11 +165,15 @@ def compute_rotation_signal(cfg: dict[str, Any], refresh: bool = True) -> dict[s
         latest_dates.append(last_dt)
         c_val = float(close.iloc[-1])
         ma_val = float(sma200.iloc[-1]) if pd.notna(sma200.iloc[-1]) else float("nan")
+        ma50_val = float(sma50.iloc[-1]) if pd.notna(sma50.iloc[-1]) else float("nan")
         m_val = float(mom60.iloc[-1]) if pd.notna(mom60.iloc[-1]) else float("nan")
         dv_val = float(dvol21.iloc[-1]) if pd.notna(dvol21.iloc[-1]) else float("nan")
 
         above200 = bool(pd.notna(ma_val) and c_val > ma_val)
+        dual_confirm = bool(above200 and pd.notna(ma50_val) and ma50_val > ma_val)
+        trend_mult = 1.0 if dual_confirm else (early_disc if above200 else 0.0)
         dvol_cap = float(np.clip(target_dvol / max(dv_val, 0.10), 0.0, 1.0)) if pd.notna(dv_val) else 0.0
+        inv_vol = 1.0 / max(dv_val, 0.15) if pd.notna(dv_val) else 0.0
 
         scores.append({
             "symbol": sym,
@@ -164,10 +183,14 @@ def compute_rotation_signal(cfg: dict[str, Any], refresh: bool = True) -> dict[s
             "open": round(float(df["Open"].iloc[-1]), 4),
             "close": round(c_val, 4),
             "sma200": round(ma_val, 4) if pd.notna(ma_val) else None,
+            "sma50": round(ma50_val, 4) if pd.notna(ma50_val) else None,
             "above200": above200,
+            "dual_confirm": dual_confirm,
+            "trend_mult": trend_mult,
             "mom60": round(m_val, 6) if pd.notna(m_val) else None,
             "dvol21": round(dv_val, 6) if pd.notna(dv_val) else None,
             "dvol_cap": round(dvol_cap, 4),
+            "inv_vol": round(inv_vol, 4),
             "target_weight": 0.0,
         })
 
@@ -176,11 +199,18 @@ def compute_rotation_signal(cfg: dict[str, Any], refresh: bool = True) -> dict[s
     eligible.sort(key=lambda x: x["mom60"], reverse=True)
     selected = eligible[:top_k]
 
+    # Dynamic Risk-Parity + Trend-Strength Allocation (NOT equal split!)
     total_w = 0.0
-    for s in selected:
-        w = min(max_w, max_w * s["dvol_cap"])
-        s["target_weight"] = round(w, 4)
-        total_w += s["target_weight"]
+    if selected:
+        raw_scores = [s["trend_mult"] * s["inv_vol"] for s in selected]
+        sum_raw = sum(raw_scores)
+        budget = min(1.0, len(selected) * max_w)
+        if sum_raw > 0:
+            for s, rs in zip(selected, raw_scores):
+                dyn_w = budget * (rs / sum_raw)
+                cap_w = max_w * s["dvol_cap"] * s["trend_mult"]
+                s["target_weight"] = round(min(dyn_w, cap_w, max_w), 4)
+            total_w = sum(s["target_weight"] for s in selected)
 
     # Hard zero-leverage invariant
     if total_w > 1.0:

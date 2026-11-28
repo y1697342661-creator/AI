@@ -1,5 +1,5 @@
-# Dedicated 7-Asset US Stock Cross-Sector Top-2 Rotation (Alpaca Paper Trading ONLY, Zero Leverage, BTC Isolated)
-name: US Stocks 7-Choose-2 Rotation & Alpaca Paper Cloud Runner
+# Dedicated 10-Asset US Stock Cross-Sector Top-3 Dynamic Rotation (Alpaca Paper Trading ONLY, Zero Leverage, BTC Isolated)
+name: US Stocks 10-Choose-3 Dynamic Rotation & Alpaca Paper Cloud Runner
 
 on:
   push:
