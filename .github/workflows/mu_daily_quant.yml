@@ -1,5 +1,5 @@
-# Dedicated 10-Asset US Stock Cross-Sector Top-3 Dynamic Rotation (Alpaca Paper Trading ONLY, Zero Leverage, BTC Isolated)
-name: US Stocks 10-Choose-3 Dynamic Rotation & Alpaca Paper Cloud Runner
+# US Stock Full-Market Screener -> Alpaca Paper Trading Cloud Auto-Executor (Zero Leverage, BTC Isolated)
+name: US Stocks Screener-Linked Alpaca Paper Auto-Executor
 
 on:
   push:
@@ -7,14 +7,13 @@ on:
     paths:
       - ".github/workflows/mu_daily_quant.yml"
   schedule:
-    # 1) Beijing Tue-Sat 07:00 (post US market close): refresh 7 US stocks + update forward paper scorecard
-    - cron: "0 23 * * 1-5"
-    # 2) Beijing Mon-Fri 22:35 (5 min after US winter open, inside US summer session): auto-sync Alpaca Paper Trading
+    # Beijing Mon-Fri 22:35 (5 min after US winter open, inside US summer session):
+    # Executes the latest allocation produced by us_screener_daily.yml (06:30 BJ) on Alpaca Paper Trading
     - cron: "35 14 * * 1-5"
   workflow_dispatch:
     inputs:
       execute_demo:
-        description: "Auto-rebalance 7 US stocks on Alpaca Paper Trading (paper-api.alpaca.markets ONLY)"
+        description: "Auto-rebalance Alpaca Paper Trading from data/screener/latest_allocation.json (paper-api ONLY)"
         type: boolean
         default: true
 
@@ -26,7 +25,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  run-us-rotation:
+  run-screener-alpaca:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -43,45 +42,39 @@ jobs:
       - name: Install minimal dependencies
         run: pip install -r requirements-mu.txt
 
-      - name: Run 7-Asset Cross-Sector Rotation Data, Paper Scorecard & Alpaca Paper Auto-Sync
+      - name: Execute Screener Allocation on Alpaca Paper Trading (paper-api.alpaca.markets ONLY)
         env:
           PYTHONPATH: src
           ALPACA_PAPER_JSON: ${{ secrets.ALPACA_PAPER || secrets.AMEREICA }}
           ALPACA_PAPER_API_KEY: ${{ secrets.ALPACA_PAPER_API_KEY }}
           ALPACA_PAPER_SECRET_KEY: ${{ secrets.ALPACA_PAPER_SECRET_KEY }}
           EVENT_NAME: ${{ github.event_name }}
-          SCHEDULE_CRON: ${{ github.event.schedule }}
           INPUT_EXECUTE: ${{ inputs.execute_demo }}
           VAR_AUTO_EXECUTE: ${{ vars.ROTATION_AUTO_EXECUTE }}
         run: |
-          python src/mu_quant/rotation/runner.py
-          HAS_ALPACA="false"
-          if [ -n "$ALPACA_PAPER_JSON" ] || [ -n "$ALPACA_PAPER_API_KEY" ]; then
-            HAS_ALPACA="true"
-          fi
-          if [ "$HAS_ALPACA" = "true" ]; then
-            if [ "$EVENT_NAME" = "workflow_dispatch" ] && [ "$INPUT_EXECUTE" = "true" ]; then
-              python src/mu_quant/rotation/runner.py --no-refresh --sync-alpaca-paper
-            elif [ "$EVENT_NAME" = "push" ] && [ "$VAR_AUTO_EXECUTE" != "false" ]; then
-              python src/mu_quant/rotation/runner.py --no-refresh --sync-alpaca-paper
-            elif [ "$SCHEDULE_CRON" = "35 14 * * 1-5" ] && [ "$VAR_AUTO_EXECUTE" != "false" ]; then
-              python src/mu_quant/rotation/runner.py --no-refresh --sync-alpaca-paper
-            else
-              echo "Post-close data-only run (schedule=$SCHEDULE_CRON); skipping Alpaca order outside US market hours."
-            fi
-          else
-            echo "No ALPACA_PAPER secret configured; updated rotation paper scorecard only."
+          if [ -z "$ALPACA_PAPER_JSON" ] && [ -z "$ALPACA_PAPER_API_KEY" ]; then
+            echo "No AMEREICA / ALPACA_PAPER secret configured; printing Screener allocation preview only."
+            python src/mu_quant/rotation/runner.py --from-screener
+            exit 0
           fi
 
-      - name: Commit updated 7-Asset Rotation data, forward scorecard & Alpaca Paper orders
+          if [ "$EVENT_NAME" = "workflow_dispatch" ] && [ "$INPUT_EXECUTE" = "false" ]; then
+            python src/mu_quant/rotation/runner.py --from-screener --sync-alpaca-paper --dry-run
+          elif [ "$VAR_AUTO_EXECUTE" = "false" ]; then
+            python src/mu_quant/rotation/runner.py --from-screener --sync-alpaca-paper --dry-run
+          else
+            python src/mu_quant/rotation/runner.py --from-screener --sync-alpaca-paper
+          fi
+
+      - name: Commit updated Alpaca Paper Trading order ledger
         run: |
-          git config user.name "us-rotation-bot"
-          git config user.email "us-rotation-bot@users.noreply.github.com"
-          git add data/rotation/
+          git config user.name "us-screener-executor-bot"
+          git config user.email "us-screener-executor-bot@users.noreply.github.com"
+          git add data/rotation/alpaca_paper_orders.csv
           if ! git diff --cached --quiet; then
-            git commit -m "chore(rotation): daily 7-asset data, forward scorecard & Alpaca paper sync [skip ci]"
+            git commit -m "chore(alpaca): screener-linked paper trading rebalance [skip ci]"
             git pull --rebase origin main
             git push origin main
           else
-            echo "No rotation data/ledger changes to commit."
+            echo "No Alpaca order ledger changes to commit."
           fi

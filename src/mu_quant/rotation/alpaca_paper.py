@@ -13,6 +13,7 @@ from __future__ import annotations
 import datetime as dt
 import json
 import os
+import re
 import sys
 import urllib.error
 import urllib.request
@@ -34,7 +35,9 @@ log = get_logger("mu_quant.alpaca_paper")
 ALPACA_PAPER_BASE = "https://paper-api.alpaca.markets"
 SECRETS_FILE = CONFIGS_DIR / "alpaca_paper_secrets.local.json"
 ALPACA_ORDERS_LOG = ROOT / "data" / "rotation" / "alpaca_paper_orders.csv"
+SCREENER_ALLOC_FILE = ROOT / "data" / "screener" / "latest_allocation.json"
 ALPACA_ORDERS_LOG.parent.mkdir(parents=True, exist_ok=True)
+_US_TICKER_RE = re.compile(r"^[A-Z]{1,5}$")
 
 
 def _load_alpaca_paper_secrets() -> dict[str, Any]:
@@ -258,6 +261,182 @@ def sync_rotation_alpaca_paper(sig: dict[str, Any], cfg: dict[str, Any], dry_run
     return {
         "ok": all_ok,
         "paper_only": True,
+        "dry_run": dry_run,
+        "account_number": acct.get("account_number"),
+        "equity_usd": round(equity, 2),
+        "cash_usd": round(cash, 2),
+        "cur_weights": {k: round(v, 4) for k, v in cur_weights.items()},
+        "target_weights": {k: round(v, 4) for k, v in target_weights.items()},
+        "actions_planned": actions_planned,
+        "orders_executed": orders_executed,
+    }
+
+
+def load_screener_allocation(path: Path = SCREENER_ALLOC_FILE) -> dict[str, Any]:
+    """Load latest offense+defense dynamic allocation produced by the US Stock Screener."""
+    if not path.exists():
+        raise FileNotFoundError(f"Missing screener allocation file: {path}")
+    alloc = json.loads(path.read_text(encoding="utf-8-sig"))
+    raw_tw = alloc.get("target_weights") or {}
+    clean_tw: dict[str, float] = {}
+    for sym, w in raw_tw.items():
+        s = str(sym).strip().upper()
+        wf = float(w or 0.0)
+        if not _US_TICKER_RE.match(s) or wf <= 0.0:
+            continue
+        # Hard single-stock safety cap 40%
+        clean_tw[s] = min(wf, 0.40)
+    total_w = sum(clean_tw.values())
+    if total_w > 1.0:
+        clean_tw = {s: round(w / total_w, 4) for s, w in clean_tw.items()}
+    alloc["target_weights"] = clean_tw
+    return alloc
+
+
+def sync_screener_alpaca_paper(
+    alloc: dict[str, Any] | None = None,
+    *,
+    rebalance_tol: float = 0.02,
+    min_order_usd: float = 15.0,
+    dry_run: bool = False,
+) -> dict[str, Any]:
+    """Sync Alpaca Paper Trading (`paper-api.alpaca.markets` ONLY) directly to the Screener's `latest_allocation.json`.
+
+    - Exits any currently held stock that is no longer in `target_weights` (full liquidation first).
+    - Trims overweight positions, then buys underweight / newly screened positions with cash only (zero leverage).
+    - Cancels stale pending orders before submitting fresh rebalance orders.
+    """
+    if alloc is None:
+        alloc = load_screener_allocation()
+    target_weights: dict[str, float] = dict(alloc.get("target_weights") or {})
+    ver = str(alloc.get("version") or "screener-v2.0.0")
+
+    acct = get_alpaca_paper_account()
+    if not acct.get("ok"):
+        return {"ok": False, "paper_only": True, "error": acct.get("error")}
+
+    equity = float(acct["equity"])
+    cash = float(acct["cash"])
+    pos_map = {
+        str(p["symbol"]).upper(): p
+        for p in acct["positions"]
+        if _US_TICKER_RE.match(str(p.get("symbol", "")).upper())
+    }
+    all_syms = sorted(set(pos_map.keys()) | set(target_weights.keys()))
+    cur_weights = {s: (pos_map[s]["market_value"] / equity if (s in pos_map and equity > 0) else 0.0) for s in all_syms}
+
+    if not dry_run:
+        _alpaca_request("DELETE", "/v2/orders")
+
+    actions_planned: list[dict[str, Any]] = []
+    orders_executed: list[dict[str, Any]] = []
+
+    # 1) SELLS & FULL EXITS first
+    for sym in all_syms:
+        tw = float(target_weights.get(sym, 0.0))
+        cw = float(cur_weights.get(sym, 0.0))
+        cur_val = pos_map[sym]["market_value"] if sym in pos_map else 0.0
+        if cur_val < min_order_usd:
+            continue
+        is_full_exit = (tw == 0.0)
+        is_trim = (cw - tw >= rebalance_tol and (cw - tw) * equity >= min_order_usd)
+        if is_full_exit or is_trim:
+            sell_usd = cur_val if is_full_exit else (cw - tw) * equity
+            actions_planned.append({
+                "symbol": sym,
+                "side": "sell",
+                "prev_w": round(cw, 4),
+                "target_w": round(tw, 4),
+                "est_usd": round(sell_usd, 2),
+                "full_exit": is_full_exit,
+            })
+            if not dry_run:
+                if is_full_exit:
+                    code, resp = _alpaca_request("DELETE", f"/v2/positions/{sym}")
+                else:
+                    code, resp = _alpaca_request("POST", "/v2/orders", {
+                        "symbol": sym,
+                        "notional": f"{sell_usd:.2f}",
+                        "side": "sell",
+                        "type": "market",
+                        "time_in_force": "day",
+                    })
+                ok = code in (200, 201)
+                ord_id = str(resp.get("id", "")) if isinstance(resp, dict) else ""
+                status_txt = str(resp.get("status", resp.get("message", ""))) if isinstance(resp, dict) else str(resp)
+                if ok:
+                    cash += sell_usd * 0.998
+                orders_executed.append({
+                    "recorded_at": dt.datetime.now().isoformat(timespec="seconds"),
+                    "paper_only": True,
+                    "version": ver,
+                    "symbol": sym,
+                    "side": "SELL",
+                    "prev_weight": round(cw, 4),
+                    "target_weight": round(tw, 4),
+                    "notional_usd": round(sell_usd, 2),
+                    "ok": ok,
+                    "ord_id": ord_id,
+                    "status": status_txt,
+                })
+
+    # 2) BUYS second (strictly cash only, zero leverage; larger target weights first)
+    buy_candidates = sorted(target_weights.keys(), key=lambda s: target_weights[s], reverse=True)
+    for sym in buy_candidates:
+        tw = float(target_weights[sym])
+        cw = float(cur_weights.get(sym, 0.0))
+        if tw - cw >= rebalance_tol:
+            want_usd = (tw - cw) * equity
+            spend_usd = min(want_usd, max(0.0, cash * 0.99))
+            if spend_usd >= min_order_usd:
+                actions_planned.append({
+                    "symbol": sym,
+                    "side": "buy",
+                    "prev_w": round(cw, 4),
+                    "target_w": round(tw, 4),
+                    "est_usd": round(spend_usd, 2),
+                    "full_exit": False,
+                })
+                if not dry_run:
+                    code, resp = _alpaca_request("POST", "/v2/orders", {
+                        "symbol": sym,
+                        "notional": f"{spend_usd:.2f}",
+                        "side": "buy",
+                        "type": "market",
+                        "time_in_force": "day",
+                    })
+                    ok = code in (200, 201)
+                    ord_id = str(resp.get("id", "")) if isinstance(resp, dict) else ""
+                    status_txt = str(resp.get("status", resp.get("message", ""))) if isinstance(resp, dict) else str(resp)
+                    if ok:
+                        cash = max(0.0, cash - spend_usd)
+                    orders_executed.append({
+                        "recorded_at": dt.datetime.now().isoformat(timespec="seconds"),
+                        "paper_only": True,
+                        "version": ver,
+                        "symbol": sym,
+                        "side": "BUY",
+                        "prev_weight": round(cw, 4),
+                        "target_weight": round(tw, 4),
+                        "notional_usd": round(spend_usd, 2),
+                        "ok": ok,
+                        "ord_id": ord_id,
+                        "status": status_txt,
+                    })
+
+    if orders_executed:
+        df_ord = pd.read_csv(ALPACA_ORDERS_LOG, encoding="utf-8-sig") if ALPACA_ORDERS_LOG.exists() else pd.DataFrame()
+        pd.concat([df_ord, pd.DataFrame(orders_executed)], ignore_index=True).to_csv(
+            ALPACA_ORDERS_LOG, index=False, encoding="utf-8-sig"
+        )
+
+    all_ok = all(o["ok"] for o in orders_executed) if orders_executed else True
+    return {
+        "ok": all_ok,
+        "paper_only": True,
+        "source": "screener_latest_allocation",
+        "regime": alloc.get("regime"),
+        "signal_date": alloc.get("signal_date"),
         "dry_run": dry_run,
         "account_number": acct.get("account_number"),
         "equity_usd": round(equity, 2),
