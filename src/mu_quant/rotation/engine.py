@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import math
 import sys
 import urllib.request
 from pathlib import Path
@@ -347,14 +348,21 @@ def sync_rotation_okx_demo(sig: dict[str, Any], cfg: dict[str, Any], dry_run: bo
         elif ccy in ccy_to_sym:
             held_qty[ccy_to_sym[ccy]] = float(d.get("availBal") or d.get("eq") or 0.0)
 
-    # 2) Fetch live OKX spot prices for all 6 whitelisted tokens
+    # 2) Fetch live OKX spot prices + instrument precision (lotSz / maxMktAmt) for all 6 whitelisted tokens
     prices: dict[str, float] = {}
+    lot_sz_map: dict[str, float] = {}
+    max_mkt_amt_map: dict[str, float] = {}
+    inst_meta_resp = _http_request_json("GET", "/api/v5/public/instruments?instType=SPOT")
+    inst_meta = {x["instId"]: x for x in (inst_meta_resp.get("data") or [])}
     for sym, inst_id in sym_to_inst.items():
         tk = _http_request_json("GET", f"/api/v5/market/ticker?instId={inst_id}")
         if tk.get("code") == "0" and tk.get("data"):
             prices[sym] = float(tk["data"][0]["last"])
         else:
             prices[sym] = 0.0
+        meta = inst_meta.get(inst_id, {})
+        lot_sz_map[sym] = float(meta.get("lotSz") or 0.0001)
+        max_mkt_amt_map[sym] = float(meta.get("maxMktAmt") or 100000.0)
 
     # Sleeve equity = free USDT + value of ONLY the 6 whitelisted stock tokens (isolates BTC margin!)
     pos_vals = {sym: held_qty[sym] * prices[sym] for sym in held_qty}
@@ -377,8 +385,14 @@ def sync_rotation_okx_demo(sig: dict[str, Any], cfg: dict[str, Any], dry_run: bo
         is_full_exit = (tw == 0.0 and pos_vals[sym] >= min_order_usdt)
         is_trim = (cw - tw >= tol and (cw - tw) * sleeve_eq >= min_order_usdt)
         if is_full_exit or is_trim:
-            sell_qty = held_qty[sym] if is_full_exit else min(held_qty[sym], ((cw - tw) * sleeve_eq) / px)
-            sell_qty_str = f"{sell_qty:.6f}".rstrip("0").rstrip(".")
+            raw_qty = held_qty[sym] if is_full_exit else min(held_qty[sym], ((cw - tw) * sleeve_eq) / px)
+            lot = lot_sz_map.get(sym, 0.0001)
+            # Floor strictly to lotSz so we NEVER exceed availBal due to rounding up
+            sell_qty = math.floor(raw_qty / lot) * lot
+            if sell_qty <= 0 or sell_qty * px < min_order_usdt:
+                continue
+            decimals = max(0, int(round(-math.log10(lot)))) if lot < 1 else 0
+            sell_qty_str = f"{sell_qty:.{decimals}f}".rstrip("0").rstrip(".")
             act = {
                 "symbol": sym,
                 "inst_id": inst_id,
@@ -400,8 +414,9 @@ def sync_rotation_okx_demo(sig: dict[str, Any], cfg: dict[str, Any], dry_run: bo
                 }
                 resp = _demo_private_request("POST", "/api/v5/trade/order", payload)
                 ok = resp.get("code") == "0"
-                ord_id = resp["data"][0].get("ordId", "") if ok and resp.get("data") else ""
-                msg = resp["data"][0].get("sMsg", "Order placed") if ok and resp.get("data") else resp.get("msg", str(resp))
+                d0 = (resp.get("data") or [{}])[0]
+                ord_id = d0.get("ordId", "") if ok else ""
+                msg = d0.get("sMsg") or resp.get("msg") or str(resp)
                 if ok:
                     avail_usdt += sell_qty * px * 0.998
                 rec = {
@@ -432,7 +447,8 @@ def sync_rotation_okx_demo(sig: dict[str, Any], cfg: dict[str, Any], dry_run: bo
             continue
         if tw - cw >= tol:
             want_usdt = (tw - cw) * sleeve_eq
-            spend_usdt = min(want_usdt, max(0.0, avail_usdt * 0.99))
+            max_amt = max_mkt_amt_map.get(sym, 100000.0) * 0.95
+            spend_usdt = min(want_usdt, max(0.0, avail_usdt * 0.99), max_amt)
             if spend_usdt >= min_order_usdt:
                 sz_str = f"{spend_usdt:.2f}"
                 act = {
