@@ -1,4 +1,4 @@
-# US Stock Full-Market Screener -> Alpaca Paper Trading Cloud Auto-Executor (Zero Leverage, BTC Isolated)
+# US Stock Full-Market Screener (latest_allocation.json) -> Alpaca Paper Trading Cloud Auto-Executor (Zero Leverage)
 name: US Stocks Screener-Linked Alpaca Paper Auto-Executor
 
 on:

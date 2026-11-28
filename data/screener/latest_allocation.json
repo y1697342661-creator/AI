@@ -1,0 +1,82 @@
+{
+  "version": "screener-v2.0.0",
+  "signal_date": "2026-11-27",
+  "computed_at": "2026-11-28T14:11:08",
+  "regime": "BEAR_DEFENSE",
+  "regime_label": "熊市防守",
+  "selected_symbols": [
+    "AAPL",
+    "TSLA",
+    "PANW",
+    "COST",
+    "WMT"
+  ],
+  "target_weights": {
+    "AAPL": 0.05,
+    "TSLA": 0.05,
+    "PANW": 0.05,
+    "COST": 0.325,
+    "WMT": 0.325
+  },
+  "offense_weight": 0.15,
+  "defense_weight": 0.65,
+  "total_invested_weight": 0.8,
+  "cash_weight": 0.2,
+  "positions": [
+    {
+      "symbol": "AAPL",
+      "sleeve": "OFFENSE",
+      "sector": "云与超级平台",
+      "theme": "端侧AI硬件与现金流基石",
+      "weight": 0.05,
+      "score": 89.7,
+      "dvol21": 0.142746,
+      "stop_price": 339.108,
+      "discovered": false
+    },
+    {
+      "symbol": "TSLA",
+      "sleeve": "OFFENSE",
+      "sector": "航天与硬科技",
+      "theme": "智驾FSD、储能与人形机器人",
+      "weight": 0.05,
+      "score": 75.7,
+      "dvol21": 0.497096,
+      "stop_price": 349.718,
+      "discovered": false
+    },
+    {
+      "symbol": "PANW",
+      "sleeve": "OFFENSE",
+      "sector": "AI软件与数据",
+      "theme": "企业级网络安全平台",
+      "weight": 0.05,
+      "score": 75.4,
+      "dvol21": 0.46918,
+      "stop_price": 315.477,
+      "discovered": false
+    },
+    {
+      "symbol": "COST",
+      "sleeve": "DEFENSE",
+      "sector": "防御蓝筹现金牛",
+      "theme": "开市客·会员制稳定现金流",
+      "weight": 0.325,
+      "score": 97.7,
+      "dvol21": 0.09725,
+      "stop_price": 1053.225,
+      "discovered": false
+    },
+    {
+      "symbol": "WMT",
+      "sleeve": "DEFENSE",
+      "sector": "防御蓝筹现金牛",
+      "theme": "沃尔玛·逆周期零售龙头",
+      "weight": 0.325,
+      "score": 92.6,
+      "dvol21": 0.113818,
+      "stop_price": 126.669,
+      "discovered": false
+    }
+  ]
+}
